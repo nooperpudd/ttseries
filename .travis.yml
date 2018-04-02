@@ -1,0 +1,42 @@
+matrix:
+  include:
+  - os: linux
+    language: python
+    python: '3.6.5'
+    compiler: gcc-5
+    env: CC=gcc
+  - os: linux
+    language: python
+    python: '3.5.5'
+    compiler: gcc-5
+    env: CC=gcc
+
+sudo: false
+
+cache: pip
+
+install:
+  - python -c "import struct; print(struct.calcsize('P') * 8)"
+  - pip install -U wheel pypi setuptools --upgrade
+  - pip install -r requirements.txt
+  - pip install pytest pytest-cov pytest-runner codecov --upgrade
+
+script:
+  - pytest -v -s
+  - py.test -v --cov=ttseries --cov-report xml
+
+after_success:
+ # run codecov report
+  - codecov -e $TRAVIS_PYTHON_VERSION
+
+
+before_deploy: "echo 'ready'"
+
+deploy:
+  provider: pypi
+  user: nooperpudd
+  password:
+    secure:
+  distributions: "sdist"
+  on:
+    tags: true
