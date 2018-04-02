@@ -2,15 +2,14 @@ matrix:
   include:
   - os: linux
     language: python
-    python: '3.6.5'
+    python: 3.6.5
     compiler: gcc-5
     env: CC=gcc
   - os: linux
     language: python
-    python: '3.5.5'
+    python: 3.5.5
     compiler: gcc-5
     env: CC=gcc
-
 sudo: false
 
 cache: pip
@@ -24,19 +23,16 @@ install:
 script:
   - pytest -v -s
   - py.test -v --cov=ttseries --cov-report xml
-
 after_success:
- # run codecov report
   - codecov -e $TRAVIS_PYTHON_VERSION
 
-
-before_deploy: "echo 'ready'"
+before_deploy: echo 'ready'
 
 deploy:
   provider: pypi
   user: nooperpudd
   password:
-    secure:
-  distributions: "sdist"
+    secure: 5aY1fBXsTKK7gjQYzRvD2rvmss4arWby+tA2T/2lY7PcvjnEeNPlAyV6jukRkfNbssa2tBoa28dHuXl+nyn/9GpQVF3aRTV/Tah8a2MDGf91e13Q4NKgzPzlVSITWl6646F7/ADau/t1mIPQPgZ9gshFuBHv3/dkqdgVhRMfRuSM1N/QswRAM0gjBIl6JILim1OhhBIE6C0ITBXu/BsG3x31Y/7DI7NLmcpAqtIWyp6FUNibri+JDDJtjnNzeuaF89bgwblkpc4fHfzJulD8sQszZISzbDfx/t3S6vV9ig1AM7jA7RUbcDIS6yec9pudcbLBzbNCKDysq8hEZfRBq13jrm5EksRlSKqn0ccFgynRjffUqePx76Xvhyjonf89DI2CdZSk+hhWV6iUEp3lpWhASqiF2KDiBtibcvTXctSK5gu12FzosyYwY1gUOByNUsYBHNIRnEq+ig1bOt7KhLi78ObSZ0YIPL096jjP5SFlkmR9AwZ7qyYWeZlDAaL6V7W6xw5qSzUxcG9E44qitNlLzR1DO6v9YPa8B9xczXn4q0H+WuzsCiKgfGiJKhJWblnJgatzcHm3EL2VHZFBXRgQXye9rXwiZRsudQxMhmmttsbcIUqrD7F1Gf/rmDlCGrFaPNNavYF3WbF3m8654zmJs0Q2eP7iAWqyFi1BlWY=
+  distributions: sdist
   on:
     tags: true

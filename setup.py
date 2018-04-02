@@ -27,7 +27,7 @@ def find_version(*file_paths):
 setup(
     name="ttseries",
     platforms="any",
-    version=find_version("", "__init__.py"),
+    version=find_version("ttseries", "__init__.py"),
     author="Winton Wang",
     author_email="365504029@qq.com",
     url="https://github.com/nooperpudd/ttseries",
