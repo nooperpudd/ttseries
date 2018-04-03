@@ -3,7 +3,7 @@ ttseries
 
 High-performance engine to store Time-series data in Redis.
 
-|travis| |codecov| |codacy| |requirements| |pypi| |status| |pyversion|
+|travis| |appveyor| |codecov| |codacy| |requirements| |pypi| |status| |pyversion|
 
 Install
 =======
@@ -36,6 +36,9 @@ Contact
 
 .. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg
     :target: https://travis-ci.org/nooperpudd/ttseries
+
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/ntlhwaagr5dqh341?svg=true
+    :target: https://ci.appveyor.com/project/nooperpudd/ttseries
 
 .. |codecov| image:: https://codecov.io/gh/nooperpudd/ttseries/branch/master/graph/badge.svg
     :target: https://codecov.io/gh/nooperpudd/ttseries
