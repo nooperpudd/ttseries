@@ -1,4 +1,4 @@
 msgpack-python==0.4.8
 numpy==1.13.3
 git+https://github.com/nooperpudd/hiredis-py.git@master#egg=hiredis
-redis=2.10.6
+redis==2.10.6
