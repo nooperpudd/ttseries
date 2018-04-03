@@ -3,8 +3,10 @@ import abc
 import datetime
 import decimal
 
-import arrow
+from dateutil import parser
+
 import msgpack
+
 
 
 class BaseSerializer(abc.ABC):
@@ -12,7 +14,6 @@ class BaseSerializer(abc.ABC):
     The base serializer class,
     only defines the signature for loads and dumps
     """
-
     @abc.abstractmethod
     def loads(self, data, *args, **kwargs):
         """
@@ -48,13 +49,13 @@ class MsgPackDecoder(object):
         return obj
 
     def decode_datetime(self, obj):
-        return arrow.get(obj["str"]).datetime
+        return parser.parse(obj["str"])
 
     def decode_date(self, obj):
-        return arrow.get(obj["str"]).date()
+        return parser.parse(obj["str"]).date()
 
     def decode_time(self, obj):
-        return arrow.get(obj["str"]).time()
+        return parser.parse(obj["str"]).time()
 
     def decode_decimal(self, obj):
         return decimal.Decimal(obj["str"])
@@ -64,7 +65,6 @@ class MsgPackEncoder(object):
     """
     encode the data type to the message pack format
     """
-
     def encode(self, obj):
         """
         :param obj:
