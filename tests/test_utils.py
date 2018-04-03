@@ -15,7 +15,7 @@ class ChunksTest(unittest.TestCase):
         chunk_data = list(chunk_data)
         self.assertEqual(chunk_data, [(0, 1)])
 
-    def test_none_chunk(self):
+    def test_less_chunk(self):
         chunk_data = chunks(range(1), 6)
         chunk_data = list(chunk_data)
         self.assertEqual(chunk_data, [(0,)])
