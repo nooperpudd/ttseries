@@ -1,5 +1,4 @@
 # coverage control
-
 [run]
 branch = true
 source = ttseries

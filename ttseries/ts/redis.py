@@ -5,6 +5,7 @@ import functools
 import itertools
 from operator import itemgetter
 
+import ttseries.utils
 from ttseries import serializers
 from ttseries.exceptions import (SerializerError)
 
@@ -258,7 +259,7 @@ class RedisTimeSeries(object):
         :param kwargs:
         :return:
         """
-        chunks_data = helper.chunks(keys, 10000)
+        chunks_data = ttseries.utils.chunks(keys, 10000)
         for chunk_keys in chunks_data:
             incr_chunks = map(lambda x: self.incr_format.format(key=x), chunk_keys)
             hash_chunks = map(lambda x: self.hash_format.format(key=x), chunk_keys)
@@ -291,7 +292,7 @@ class RedisTimeSeries(object):
             filter_results = itertools.filterfalse(lambda x: x[0] in timestamp_set, sorted_timestamps)
         else:
             filter_results = sorted_timestamps
-        chunks_data = helper.chunks(filter_results, chunks_size)
+        chunks_data = ttseries.utils.chunks(filter_results, chunks_size)
 
         with self._pipe_acquire() as pipe:
             for chunks in chunks_data:
@@ -303,7 +304,7 @@ class RedisTimeSeries(object):
 
                 ids_range = range(start_id, end_id)
 
-                dumps_results = map(lambda x: (x[0], self.serializer.dumps(x[1])), chunks)
+                dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
 
                 mix_data = itertools.zip_longest(dumps_results, ids_range)  # [(("timestamp",data),id),...]
                 mix_data = list(mix_data)  # need converted as list
