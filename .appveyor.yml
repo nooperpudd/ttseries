@@ -1,5 +1,8 @@
 # https://www.appveyor.com/docs/build-configuration/
 # https://packaging.python.org/guides/supporting-windows-using-appveyor/
+image:
+- Visual Studio 2015
+- Visual Studio 2017
 
 platform:
   - x64
