@@ -8,7 +8,6 @@ from dateutil import parser
 import msgpack
 
 
-
 class BaseSerializer(abc.ABC):
     """
     The base serializer class,

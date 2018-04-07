@@ -7,47 +7,28 @@ from operator import itemgetter
 
 import ttseries.utils
 from ttseries import serializers
-from ttseries.exceptions import (SerializerError)
+from ttseries.exceptions import (SerializerError,RedisTimeSeriesException)
+
+from .base import RedisClient
 
 
-def transaction():
-    """
-    wrapper class
-    :return:
-    """
-
-    def wrapper(func):
-        """
-        :return:
-        """
-
-        @functools.wraps(func)
-        def inner(*args, **kwargs):
-            """
-            :param args:
-            :param kwargs:
-            :return:
-            """
-
-        return inner
-
-    return wrapper
 
 
-class RedisTimeSeries(object):
+
+class RedisHashTimeSeries(RedisClient):
     """
     Redis to save time-series data
     use redis sorted set as the time-series
     sorted as the desc
     support max length 2**63-1
     """
+    hash_format = "{key}:HASH"  # as the hash set id
+
     # todo support redis cluster
     # todo support lte or gte
     # todo support redis transaction
-
     # todo support parllizem and mulit threading
     # todo support lock, when add large amount data
-    # todo implement redis lock
     # todo support numpy, best for memory
     # todo support max time-series length
     # todo test many item data execute how much could support 10000? 100000? 10000000?
@@ -57,51 +38,7 @@ class RedisTimeSeries(object):
     # serializer_class = serializers.MsgPackSerializer
     # compress_class = compress.
 
-    incr_format = "{key}:ID"  # as the auto increase id
-    hash_format = "{key}:HASH"  # as the hash set id
-
-    def __init__(self, redis_client, max_length=100000,
-                 serializer_cls=serializers.MsgPackSerializer,
-                 compressor_cls=None):
-        """
-        :param redis_client:
-        :param max_length: store redis data by key with max length.
-        :param serializer_cls:
-        :param compressor_cls:
-        """
-        self._redis_client = redis_client
-        self.max_length = max_length
-        if issubclass(serializer_cls, serializers.BaseSerializer):
-            self._serializer = serializer_cls()
-        else:
-            raise SerializerError("")
-        if compressor_cls:
-            self._compress = None
-
-    @property
-    @functools.lru_cache()
-    def client(self):
-        """
-        :return:
-        """
-        return self._redis_client
-
-    @contextlib.contextmanager
-    def _pipe_acquire(self):
-        """
-        :return:
-        """
-        yield self.client.pipeline()
-
-    def count(self, name: str):
-        """
-        :param name:
-        :return: int
-        """
-        incr_key = self.incr_format.format(key=name)
-        return int(self.client.get(incr_key))
-
-    def add(self, name: str, timestamp: float, data):
+    def add(self, name: str, timestamp: float, data)->bool:
         """
         incr -> result
         hmset key field value
@@ -114,33 +51,37 @@ class RedisTimeSeries(object):
         :return: bool
         """
         dumps_data = self._serializer.dumps(data)
+
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
-        if not self.exists(name, timestamp):
+        if not self.exist_timestamp(name, timestamp):
+            # todo watch or not
+            self.client.watch(incr_key)
+            # key id start for 1
             key_id = self.client.incr(incr_key)
-            dumps_dict = {key_id: dumps_data}
-            with self._pipe_acquire() as pipe:
-                pipe.multi()
-                pipe.zadd(name, timestamp, key_id)
-                pipe.hmset(hash_key, dumps_dict)
-                results = pipe.execute()
-                return True if all(results) else False
+            if key_id >= self.max_length:
+                pass
+            try:
+                dumps_dict = {key_id: dumps_data}
+                # send pipe
+                # yield data iter
+                def pipe_func(_pipe,name,timestamp,key_id):
+                    pass
+
+                with self._pipe_acquire() as pipe:
+                    pipe.multi()
+                    pipe.zadd(name, timestamp, key_id)
+                    pipe.hmset(hash_key, dumps_dict)
+                    results = pipe.execute()
+                    return True if all(results) else False
+            except Exception as e:
+                # todo decr id
+                self.client.incr(incr_key)
+                raise e
+
         else:
             return False
-
-    def exists(self, name, timestamp=None) -> bool:
-        """
-        :param name:
-        :param timestamp:
-        :return: bool
-        """
-        if timestamp:
-            # Time complexity: O(log(N))
-            result = self.client.zcount(name, min=timestamp, max=timestamp)
-            return bool(result)
-        else:
-            return self.client.exists(name)
 
     def get(self, name, timestamp):
         """
@@ -154,7 +95,7 @@ class RedisTimeSeries(object):
         if result_id:
             data = self.client.hmget(hash_key, result_id)
             # only one item
-            return self.serializer.loads(data[0])
+            return self._serializer.loads(data[0])
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
         """
@@ -177,6 +118,13 @@ class RedisTimeSeries(object):
                                                     max=end_timestamp,
                                                     withscores=False)
 
+            def pipe_self(_pipe,):
+                pass
+                _pipe.decr(incr_key, len(result_data))
+                _pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
+                _pipe.hdel(hash_key, *result_data)
+
+            self.transaction_pipe([name,incr_key,hash_key],pipe_self)
             with self._pipe_acquire() as pipe:
                 pipe.multi()
                 pipe.decr(incr_key, len(result_data))
@@ -212,6 +160,10 @@ class RedisTimeSeries(object):
                 pipe.zremrangebyrank(name, min=begin, max=end)
                 pipe.hdel(hash_key, *result_data)
                 pipe.execute()
+
+    def __getitem__(self, item):
+        pass
+
 
     def get_slice(self, name, start=None, end=None,
                   start_index=None, limit=None, asc=True):
@@ -320,9 +272,6 @@ class RedisTimeSeries(object):
                 pipe.hmset(hash_key, ids_values)
                 pipe.execute()
 
-    def flush(self):
-        """
-        flush database
-        :return:
-        """
-        self.client.flushdb()
+    def iter(self):
+        pass
+
