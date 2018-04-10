@@ -1,3 +1,4 @@
+# encoding:utf-8
 import codecs
 import os
 import re
@@ -31,12 +32,13 @@ setup(
     author="Winton Wang",
     author_email="365504029@qq.com",
     url="https://github.com/nooperpudd/ttseries",
+    license="LGPLv3",
+    description="Time-Series data Store in Redis",
+    keywords="Time-Series, Time-Series Store",
+    long_description=codecs.open("README.rst", encoding="utf-8").read(),
     zip_safe=False,
-    license="",
-    description="",
-    keywords="",
-    long_description="",
-    packages=find_packages(exclude=["tests*","docs"]),
+    packages=find_packages(exclude=["tests*", "docs"]),
+    install_requires=codecs.open("requirements.txt", encoding="utf-8").readlines(),
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
