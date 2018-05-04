@@ -1,1 +1,1 @@
-from .redis import RedisTimeSeries
+from .hash import RedisHashTimeSeries

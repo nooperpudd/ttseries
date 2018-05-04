@@ -1,1 +1,1 @@
-from .ts import RedisTimeSeries
+from .ts import RedisHashTimeSeries

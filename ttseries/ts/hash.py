@@ -1,18 +1,10 @@
 # encoding:utf-8
 
-import contextlib
-import functools
 import itertools
 from operator import itemgetter
 
 import ttseries.utils
-from ttseries import serializers
-from ttseries.exceptions import (SerializerError,RedisTimeSeriesException)
-
 from .base import RedisClient
-
-
-
 
 
 class RedisHashTimeSeries(RedisClient):
@@ -28,17 +20,46 @@ class RedisHashTimeSeries(RedisClient):
     # todo support lte or gte
     # todo support redis transaction
     # todo support parllizem and mulit threading
-    # todo support lock, when add large amount data
     # todo support numpy, best for memory
     # todo support max time-series length
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo max length to auto trim the redis data
     # todo implement auto move windows moving
 
-    # serializer_class = serializers.MsgPackSerializer
-    # compress_class = compress.
+    def get(self, name, timestamp):
+        """
+        :param name:
+        :param timestamp:
+        :return:
+        """
+        hash_key = self.hash_format.format(key=name)
 
-    def add(self, name: str, timestamp: float, data)->bool:
+        result_id = self.client.zrangebyscore(name,
+                                              min=timestamp,
+                                              max=timestamp)
+        if result_id:
+            data = self.client.hmget(hash_key, result_id)
+            # only one item
+            return self._serializer.loads(data[0])
+
+    def _auto_trim(self,name, key_id, hash_key):
+
+        # if current length reach the max length of the data
+        # remove oldest key store in data
+        remove_key = key_id - self.max_length
+
+        watch_keys = (name,key_id)
+
+        def pipe_func(_pipe):  # trans function
+
+            self.client.zrem(name, remove_key)
+            self.client.hdel(hash_key, remove_key)
+
+        results = self.transaction_pipe(pipe_func, watch_keys)
+
+        # pipe
+
+    def add(self, name: str, timestamp: float, data) -> bool:
         """
         incr -> result
         hmset key field value
@@ -56,46 +77,32 @@ class RedisHashTimeSeries(RedisClient):
         hash_key = self.hash_format.format(key=name)
 
         if not self.exist_timestamp(name, timestamp):
-            # todo watch or not
-            self.client.watch(incr_key)
-            # key id start for 1
-            key_id = self.client.incr(incr_key)
-            if key_id >= self.max_length:
-                pass
+
+            key_id = self.client.incr(incr_key)  # key id start with 1
+
+            results = None
+
             try:
                 dumps_dict = {key_id: dumps_data}
-                # send pipe
-                # yield data iter
-                def pipe_func(_pipe,name,timestamp,key_id):
-                    pass
 
-                with self._pipe_acquire() as pipe:
-                    pipe.multi()
-                    pipe.zadd(name, timestamp, key_id)
-                    pipe.hmset(hash_key, dumps_dict)
-                    results = pipe.execute()
-                    return True if all(results) else False
+                def pipe_func(_pipe):  # trans function
+                    _pipe.zadd(name, timestamp, key_id)
+                    _pipe.hmset(hash_key, dumps_dict)
+
+                watch_keys = (name, hash_key)
+                results = self.transaction_pipe(pipe_func, watch_keys)
+
             except Exception as e:
-                # todo decr id
-                self.client.incr(incr_key)
+
+                self.client.decr(incr_key)
                 raise e
+            else:
+                if key_id > self.max_length:
+                    # self.client.get()
+                    self._auto_trim()
+            finally:
+                return results
 
-        else:
-            return False
-
-    def get(self, name, timestamp):
-        """
-        :param name:
-        :param timestamp:
-        :return:
-        """
-        hash_key = self.hash_format.format(key=name)
-
-        result_id = self.client.zrangebyscore(name, min=timestamp, max=timestamp)
-        if result_id:
-            data = self.client.hmget(hash_key, result_id)
-            # only one item
-            return self._serializer.loads(data[0])
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
         """
@@ -118,13 +125,13 @@ class RedisHashTimeSeries(RedisClient):
                                                     max=end_timestamp,
                                                     withscores=False)
 
-            def pipe_self(_pipe,):
+            def pipe_self(_pipe, ):
                 pass
                 _pipe.decr(incr_key, len(result_data))
                 _pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
                 _pipe.hdel(hash_key, *result_data)
 
-            self.transaction_pipe([name,incr_key,hash_key],pipe_self)
+            self.transaction_pipe([name, incr_key, hash_key], pipe_self)
             with self._pipe_acquire() as pipe:
                 pipe.multi()
                 pipe.decr(incr_key, len(result_data))
@@ -163,7 +170,6 @@ class RedisHashTimeSeries(RedisClient):
 
     def __getitem__(self, item):
         pass
-
 
     def get_slice(self, name, start=None, end=None,
                   start_index=None, limit=None, asc=True):
@@ -274,4 +280,3 @@ class RedisHashTimeSeries(RedisClient):
 
     def iter(self):
         pass
-
