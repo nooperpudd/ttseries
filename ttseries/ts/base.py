@@ -111,6 +111,7 @@ class RedisClient(object):
         incr_key = self.incr_format.format(key=name)
 
         length = self.client.get(incr_key)
+        length = int(length)
         if length >= self.max_length:
             return self.max_length
         else:

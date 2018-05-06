@@ -21,7 +21,7 @@ class RedisHashTimeSeries(RedisClient):
     # todo support redis transaction
     # todo support parllizem and mulit threading
     # todo support numpy, best for memory
-    # todo support max time-series length
+    #
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo max length to auto trim the redis data
     # todo implement auto move windows moving
@@ -42,13 +42,19 @@ class RedisHashTimeSeries(RedisClient):
             # only one item
             return self._serializer.loads(data[0])
 
-    def _auto_trim(self,name, key_id, hash_key):
-
+    def _auto_trim(self, name, key_id, hash_key):
+        """
+        remove with max length in the redis keys
+        :param name:
+        :param key_id:
+        :param hash_key:
+        :return:
+        """
         # if current length reach the max length of the data
         # remove oldest key store in data
         remove_key = key_id - self.max_length
 
-        watch_keys = (name,key_id)
+        watch_keys = (name, key_id)
 
         def pipe_func(_pipe):  # trans function
 
@@ -56,8 +62,7 @@ class RedisHashTimeSeries(RedisClient):
             self.client.hdel(hash_key, remove_key)
 
         results = self.transaction_pipe(pipe_func, watch_keys)
-
-        # pipe
+        return results
 
     def add(self, name: str, timestamp: float, data) -> bool:
         """
@@ -73,36 +78,36 @@ class RedisHashTimeSeries(RedisClient):
         """
         dumps_data = self._serializer.dumps(data)
 
-        incr_key = self.incr_format.format(key=name)
-        hash_key = self.hash_format.format(key=name)
+        incr_key = self.incr_format.format(key=name)  # APPL:SECOND:ID
+        hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
 
         if not self.exist_timestamp(name, timestamp):
 
-            key_id = self.client.incr(incr_key)  # key id start with 1
+            key_id = self.client.incr(incr_key)  # int, key id start with 1
+
+            # key id start with 1,2,3,4,5,6...
 
             results = None
 
             try:
-                dumps_dict = {key_id: dumps_data}
+                dumps_dict = {key_id: dumps_data}  # { 1: values}
 
                 def pipe_func(_pipe):  # trans function
-                    _pipe.zadd(name, timestamp, key_id)
-                    _pipe.hmset(hash_key, dumps_dict)
+                    _pipe.zadd(name, timestamp, key_id)  # APPL:SECOND, 233444334.33, 1
+                    _pipe.hmset(hash_key, dumps_dict)  # APPL:second:HASH, {1:value}
 
-                watch_keys = (name, hash_key)
+                watch_keys = (name, hash_key)  # APPL:SECOND , APPL:second:HASH
+
                 results = self.transaction_pipe(pipe_func, watch_keys)
 
             except Exception as e:
-
                 self.client.decr(incr_key)
                 raise e
             else:
                 if key_id > self.max_length:
-                    # self.client.get()
-                    self._auto_trim()
+                    self._auto_trim(name, key_id, hash_key)
             finally:
                 return results
-
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
         """
@@ -112,8 +117,8 @@ class RedisHashTimeSeries(RedisClient):
         :param end_timestamp:
         :return: bool or delete num
         """
-        incr_key = self.incr_format.format(key=name)
-        hash_key = self.hash_format.format(key=name)
+        incr_key = self.incr_format.format(key=name)  # APPL:SECOND:ID
+        hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
 
         if start_timestamp or end_timestamp:
             if not start_timestamp:
@@ -125,21 +130,34 @@ class RedisHashTimeSeries(RedisClient):
                                                     max=end_timestamp,
                                                     withscores=False)
 
-            def pipe_self(_pipe, ):
-                pass
-                _pipe.decr(incr_key, len(result_data))
+            watch_keys = (name, incr_key, hash_key)
+
+            def pipe_func(_pipe):
+
+                _pipe.decr(incr_key, len(result_data)) # todo max length and delete keys
                 _pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
                 _pipe.hdel(hash_key, *result_data)
 
-            self.transaction_pipe([name, incr_key, hash_key], pipe_self)
-            with self._pipe_acquire() as pipe:
-                pipe.multi()
-                pipe.decr(incr_key, len(result_data))
-                pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
-                pipe.hdel(hash_key, *result_data)
-                pipe.execute()
+            self.transaction_pipe(pipe_func, watch_keys)
+
         else:
+            # redis delete command
             return self.client.delete(name, incr_key, hash_key)
+
+    def remove_many(self, keys, *args, **kwargs):
+        """
+        remove many keys
+        :param keys:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        chunks_data = ttseries.utils.chunks(keys, 10000)
+        for chunk_keys in chunks_data:
+            incr_chunks = map(lambda x: self.incr_format.format(key=x), chunk_keys)
+            hash_chunks = map(lambda x: self.hash_format.format(key=x), chunk_keys)
+            del_data = itertools.chain(chunk_keys, incr_chunks, hash_chunks)
+            self.client.delete(*del_data)
 
     def trim(self, name, length=1000):
         """
@@ -208,21 +226,6 @@ class RedisHashTimeSeries(RedisClient):
             return list(itertools.zip_longest(timestamps, iter_dumps))
         else:
             return []
-
-    def remove_many(self, keys, *args, **kwargs):
-        """
-        remove many keys
-        :param keys:
-        :param args:
-        :param kwargs:
-        :return:
-        """
-        chunks_data = ttseries.utils.chunks(keys, 10000)
-        for chunk_keys in chunks_data:
-            incr_chunks = map(lambda x: self.incr_format.format(key=x), chunk_keys)
-            hash_chunks = map(lambda x: self.hash_format.format(key=x), chunk_keys)
-            del_data = itertools.chain(chunk_keys, incr_chunks, hash_chunks)
-            self.client.delete(*del_data)
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000, *args, **kwargs):
         """
