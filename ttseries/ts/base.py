@@ -54,12 +54,12 @@ from ttseries.exceptions import SerializerError
 #     return wrapper
 
 
-class RedisClient(object):
+class RedisTSBase(object):
     """
     """
     incr_format = "{key}:ID"  # as the auto increase id
 
-    def __init__(self, redis_client, max_length=100000, transaction=True,
+    def __init__(self, redis_client: redis.StrictRedis, max_length=100000, transaction=True,
                  serializer_cls=serializers.MsgPackSerializer,
                  compressor_cls=None):
         """
@@ -105,17 +105,12 @@ class RedisClient(object):
 
     def count(self, name: str):
         """
+        Time complexity: O(log(N)) with N being
+        the number of elements in the sorted set.
         :param name:
         :return: int
         """
-        incr_key = self.incr_format.format(key=name)
-
-        length = self.client.get(incr_key)
-        length = int(length)
-        if length >= self.max_length:
-            return self.max_length
-        else:
-            return int(length)
+        return self.client.zcount(name, min="-inf", max="+inf")
 
     def exists(self, name):
         """

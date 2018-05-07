@@ -4,10 +4,10 @@ import itertools
 from operator import itemgetter
 
 import ttseries.utils
-from .base import RedisClient
+from .base import RedisTSBase
 
 
-class RedisHashTimeSeries(RedisClient):
+class RedisHashTimeSeries(RedisTSBase):
     """
     Redis to save time-series data
     use redis sorted set as the time-series
@@ -104,7 +104,7 @@ class RedisHashTimeSeries(RedisClient):
                 self.client.decr(incr_key)
                 raise e
             else:
-                if key_id > self.max_length:
+                if self.count(name) > self.max_length:
                     self._auto_trim(name, key_id, hash_key)
             finally:
                 return results
@@ -130,11 +130,9 @@ class RedisHashTimeSeries(RedisClient):
                                                     max=end_timestamp,
                                                     withscores=False)
 
-            watch_keys = (name, incr_key, hash_key)
+            watch_keys = (name, hash_key)
 
             def pipe_func(_pipe):
-
-                _pipe.decr(incr_key, len(result_data)) # todo max length and delete keys
                 _pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
                 _pipe.hdel(hash_key, *result_data)
 
@@ -181,7 +179,7 @@ class RedisHashTimeSeries(RedisClient):
         if result_data:
             with self._pipe_acquire() as pipe:
                 pipe.multi()
-                pipe.decr(incr_key, length)
+                # pipe.decr(incr_key, length)
                 pipe.zremrangebyrank(name, min=begin, max=end)
                 pipe.hdel(hash_key, *result_data)
                 pipe.execute()
@@ -222,7 +220,7 @@ class RedisHashTimeSeries(RedisClient):
             # sorted as the order data
             ids, timestamps = list(itertools.zip_longest(*results_ids))
             values = self.client.hmget(hash_key, *ids)
-            iter_dumps = map(self.serializer.loads, values)
+            iter_dumps = map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
         else:
             return []
