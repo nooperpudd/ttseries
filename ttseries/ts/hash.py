@@ -17,8 +17,7 @@ class RedisHashTimeSeries(RedisTSBase):
     hash_format = "{key}:HASH"  # as the hash set id
 
     # todo support redis cluster
-    # todo support lte or gte
-    # todo support redis transaction
+
     # todo support parllizem and mulit threading
     # todo support numpy, best for memory
     #
@@ -199,34 +198,42 @@ class RedisHashTimeSeries(RedisTSBase):
 
         else:
             self.delete(name)
-            # incr_key = self.incr_format.format(key=name)
-            #
-            # watch_keys = (name, hash_key, incr_key)
-            # def pipe_func(_pipe):
-            #     _pipe.zremrangebyrank(name, min=0, max=-1) # remove all data
-            #     _pipe.hdel(hash_key, *result_data)
-            #
-            # self.transaction_pipe(pipe_func, watch_keys)
 
-    def get_slice(self, name, start=None, end=None,
+    def get_slice(self, name, start_timestamp=None, end_timestamp=None,
                   start_index=None, limit=None, asc=True):
         """
+        zrangebyscore or zrevrangebyscore
+
+        start_type = ["gt","gte"] (>, >=) asc or ["lt","lte"] (<,<=) desc
+                     for redis means '(1' ===> >1 '1' ===> 1
+
         :param name:
-        :param start:
-        :param end:
+        :param start_timestamp:
+        :param end_timestamp:
+        :param start_type:
+        :param end_type:
         :param start_index:
         :param limit:
         :param asc:
         :return:
         """
         if asc:
-            func = self.client.zrangebyscore
-        else:
-            func = self.client.zrevrangebyscore
-        if start is None:
-            start = "-inf"
-        if end is None:
-            end = "+inf"
+            zrange_func = self.client.zrangebyscore
+        else:  # desc
+            zrange_func = self.client.zrevrangebyscore
+
+        if start_timestamp is None:
+            start_timestamp = "-inf"  # todo test order maybe +inf
+
+        if end_timestamp is None:
+            end_timestamp = "+inf"
+
+        # if start_type == "gt":
+        #     start_timestamp = "(" + start_timestamp
+        #
+        # if end_type == "lt":
+        #     end_timestamp = "(" + end_timestamp
+
         if start_index is None:
             start_index = 0
 
@@ -235,7 +242,8 @@ class RedisHashTimeSeries(RedisTSBase):
 
         hash_key = self.hash_format.format(key=name)
 
-        results_ids = func(name, min=start, max=end, withscores=True, start=start_index, num=limit)
+        results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
+                                  withscores=True, start=start_index, num=limit)
 
         if results_ids:
             # sorted as the order data
@@ -243,8 +251,6 @@ class RedisHashTimeSeries(RedisTSBase):
             values = self.client.hmget(hash_key, *ids)
             iter_dumps = map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
-        else:
-            return []
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000, *args, **kwargs):
         """
@@ -266,7 +272,8 @@ class RedisHashTimeSeries(RedisTSBase):
         max_timestamp = sorted_timestamps[-1][0]  # max
         min_timestamp = sorted_timestamps[0][0]  # min
 
-        filter_data = self.get_slice(name, start=min_timestamp, end=max_timestamp)
+        filter_data = self.get_slice(name, start_timestamp=min_timestamp,
+                                     end_timestamp=max_timestamp)
         if filter_data:
             timestamp_set = set(map(lambda x: x[0], filter_data))
             filter_results = itertools.filterfalse(lambda x: x[0] in timestamp_set, sorted_timestamps)

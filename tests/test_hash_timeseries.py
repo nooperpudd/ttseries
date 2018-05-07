@@ -353,7 +353,7 @@ class RedisStoreTest(unittest.TestCase):
         data_list = self.generate_data(10)
         self.time_series.add_many(key, data_list)
 
-        self.time_series.trim(key,5)
+        self.time_series.trim(key, 5)
         self.assertEqual(self.time_series.count(key), 5)
 
     def test_trim_lgt_max_length(self):
@@ -363,119 +363,214 @@ class RedisStoreTest(unittest.TestCase):
 
         for timestamp, item in data_list:
             self.time_series.add(key, timestamp, item)
-        self.time_series.trim(key,20)
-        self.assertEqual(self.time_series.get(key))
+        self.time_series.trim(key, 20)
+
+        self.assertEqual(self.time_series.count(key), 0)
+        for time, item in data_list:
+            self.assertEqual(self.time_series.get(key, time), None)
 
     # ****************  end test trim ********************
-    #
-    # # ****************  test get slice  ********************
-    # def test_get_slice_with_key(self):
-    #     key = "APPL:MINS:1"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #
-    #     result_data = self.time_series.get_slice(key)
-    #     self.assertListEqual(data_list, result_data)
-    #
-    # def test_get_slice_with_start_timestamp(self):
-    #     """
-    #     test get slice with start timestamp
-    #     :return:
-    #     """
-    #     key = "APPL:MINS:2"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #
-    #     start = self.timestamp + 6
-    #     result_data = self.time_series.get_slice(key, start=start)
-    #
-    #     filter_data = list(filter(lambda seq: seq[0] >= start, data_list))
-    #
-    #     self.assertListEqual(result_data, filter_data)
-    #
-    # def test_get_slice_with_end_timestamp(self):
-    #     """
-    #     test get slice only with end timestamp
-    #     :return:
-    #     """
-    #     key = "APPL:MINS:6"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #     end = self.timestamp + 10
-    #     result_data = self.time_series.get_slice(key, end=end)
-    #     filter_data = list(filter(lambda seq: seq[0] <= end, data_list))
-    #     self.assertEqual(result_data, filter_data)
-    #
-    # def test_get_slice_with_timestamp(self):
-    #     key = "APPL:MINS:4"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #
-    #     start = self.timestamp + 6
-    #     end = self.timestamp + 10
-    #     result_data = self.time_series.get_slice(key, start, end)
-    #     filter_data = list(filter(lambda seq: start <= seq[0] <= end, data_list))
-    #     self.assertEqual(result_data, filter_data)
-    #
-    # def test_get_slice_with_start_length(self):
-    #     key = "APPL:MINS:5"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #     result_data = self.time_series.get_slice(key, start_index=0, limit=10)
-    #     filter_data = data_list[:10]
-    #     self.assertEqual(result_data, filter_data)
-    #
-    # def test_get_slice_with_order(self):
-    #     key = "APPL:MINS:8"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #     result_data = self.time_series.get_slice(key, asc=False)
-    #     filter_data = list(reversed(data_list))
-    #     self.assertListEqual(result_data, filter_data)
-    #
-    # # ****************  end get slice ********************
-    #
-    # # ****************  test add many ********************
-    #
-    # def test_add_many_exist(self):
-    #     key = "APPL:MINS:100"
-    #
-    #     data_list = self.generate_data(10)
-    #     self.time_series.add_many(key, data_list)
-    #     self.time_series.add_many(key, data_list)
-    #
-    #     result_data = self.time_series.get_slice(key)
-    #     self.assertListEqual(data_list, result_data)
-    #
-    # def test_add_many_data_twice(self):
-    #
-    #     key = "APPL:HOUR:1"
-    #     data_list = self.generate_data(40)
-    #     data_list1 = data_list[:20]
-    #     data_list2 = data_list[20:]
-    #     self.time_series.add_many(key, data_list1)
-    #     self.time_series.add_many(key, data_list2)
-    #
-    #     result_data = self.time_series.get_slice(key)
-    #     self.assertListEqual(data_list, result_data)
-    #
-    # def test_add_many_with_chunks(self):
-    #     key = "APPL:MINS:101"
-    #     data_list = self.generate_data(30)
-    #
-    #     self.time_series.add_many(key, data_list, chunks_size=5)
-    #
-    #     result_data = self.time_series.get_slice(key)
-    #     self.assertListEqual(data_list, result_data)
-    #
-    # # ****************  end add many ********************
-    #
 
-    #
-    # # ****************  end remove many ********************
-    #
-    # def test_flush(self):
-    #     key = "APPL"
-    #     self.time_series.add(key, self.timestamp, 1)
-    #     self.time_series.flush()
-    #     self.assertEqual(self.time_series.get_slice(key), [])
+    # # ****************  test get slice  ********************
+    def test_get_slice_with_key(self):
+        key = "APPL:MINS:1"
+        data_list = self.generate_data(10)
+
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        result_data = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, result_data)
+
+    def test_get_slice_with_key_desc(self):
+        key = "APPL:MINS:1"
+        data_list = self.generate_data(10)
+
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+        result_data = self.time_series.get_slice(key, asc=False)
+
+        reversed_data = sorted(data_list, key=lambda tup: tup[0], reverse=True)
+
+        self.assertListEqual(reversed_data, result_data)
+
+    def test_get_slice_with_start_timestamp(self):
+        """
+        test get slice with start timestamp
+        :return:
+        """
+        key = "APPL:MINS:2"
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+        start = self.timestamp + 6
+        result_data = self.time_series.get_slice(key, start_timestamp=start)
+
+        filter_data = list(filter(lambda seq: seq[0] >= start, data_list))
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_gt_start_timestamp(self):
+
+        key = "APPL:MINS:2"
+
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        start = self.timestamp + 6
+        start_timestamp = "(" + str(start)
+        result_data = self.time_series.get_slice(key,
+                                                 start_timestamp=start_timestamp)
+
+        filter_data = list(filter(lambda seq: seq[0] > start, data_list))
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_start_timestamp_limit(self):
+
+        key = "APPL:MINS:2"
+
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        start = self.timestamp + 5
+        result_data = self.time_series.get_slice(key,
+                                                 start_timestamp=start, limit=3)
+
+        filter_data = list(filter(lambda seq: seq[0] >= start, data_list))
+        filter_data = filter_data[:3]
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_start_timestamp_desc(self):
+
+        key = "APPL:MINS:2"
+
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        start = self.timestamp + 6
+        start_timestamp = "(" + str(start)
+        result_data = self.time_series.get_slice(key,
+                                                 start_timestamp=start_timestamp)
+
+        filter_data = list(filter(lambda seq: seq[0] > start, data_list))
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_end_timestamp(self):
+        """
+        test get slice only with end timestamp
+        :return:
+        """
+        key = "APPL:MINS:6"
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+        end = self.timestamp + 6
+
+        result_data = self.time_series.get_slice(key, end_timestamp=end)
+        filter_data = list(filter(lambda seq: seq[0] <= end, data_list))
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_timestamp(self):
+
+        key = "APPL:MINS:4"
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        start = self.timestamp + 6
+        end = self.timestamp + 10
+        result_data = self.time_series.get_slice(key, start, end)
+        filter_data = list(filter(lambda seq: start <= seq[0] <= end, data_list))
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_start_length(self):
+        key = "APPL:MINS:5"
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        result_data = self.time_series.get_slice(key, start_index=0, limit=5)
+        filter_data = data_list[:5]
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_order(self):
+
+        key = "APPL:MINS:8"
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        result_data = self.time_series.get_slice(key, asc=False)
+        filter_data = list(reversed(data_list))
+        self.assertListEqual(result_data, filter_data)
+
+    def test_get_slice_start_end_time_order(self):
+
+        key = "APPL:MINS:8"
+        data_list = self.generate_data(10)
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+
+        start_timestamp = self.timestamp + 3
+        end_timestamp = self.timestamp + 6
+
+        result_data = self.time_series.get_slice(key, start_timestamp=start_timestamp,
+                                                 end_timestamp=end_timestamp,
+                                                 asc=False)
+
+        data_list = data_list[3:7]
+        filter_data = list(reversed(data_list))
+        self.assertListEqual(result_data, filter_data)
+
+# # ****************  end get slice ********************
+#
+# # ****************  test add many ********************
+#
+# def test_add_many_exist(self):
+#     key = "APPL:MINS:100"
+#
+#     data_list = self.generate_data(10)
+#     self.time_series.add_many(key, data_list)
+#     self.time_series.add_many(key, data_list)
+#
+#     result_data = self.time_series.get_slice(key)
+#     self.assertListEqual(data_list, result_data)
+#
+# def test_add_many_data_twice(self):
+#
+#     key = "APPL:HOUR:1"
+#     data_list = self.generate_data(40)
+#     data_list1 = data_list[:20]
+#     data_list2 = data_list[20:]
+#     self.time_series.add_many(key, data_list1)
+#     self.time_series.add_many(key, data_list2)
+#
+#     result_data = self.time_series.get_slice(key)
+#     self.assertListEqual(data_list, result_data)
+#
+# def test_add_many_with_chunks(self):
+#     key = "APPL:MINS:101"
+#     data_list = self.generate_data(30)
+#
+#     self.time_series.add_many(key, data_list, chunks_size=5)
+#
+#     result_data = self.time_series.get_slice(key)
+#     self.assertListEqual(data_list, result_data)
+#
+# # ****************  end add many ********************
+#
+
+#
+# # ****************  end remove many ********************
+#
+# def test_flush(self):
+#     key = "APPL"
+#     self.time_series.add(key, self.timestamp, 1)
+#     self.time_series.flush()
+#     self.assertEqual(self.time_series.get_slice(key), [])
