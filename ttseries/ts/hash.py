@@ -87,8 +87,6 @@ class RedisHashTimeSeries(RedisTSBase):
 
             # key id start with 1,2,3,4,5,6...
 
-            results = None
-
             try:
                 dumps_dict = {key_id: dumps_data}  # { 1: values}
 
@@ -106,7 +104,7 @@ class RedisHashTimeSeries(RedisTSBase):
             else:
                 if self.count(name) > self.max_length:
                     self._auto_trim(name, key_id, hash_key)
-            finally:
+
                 return results
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
