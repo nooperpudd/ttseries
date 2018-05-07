@@ -44,6 +44,12 @@ init:
 build: off
 
 install:
+  # Install the Redis
+  - nuget install redis-64 -excludeversion
+  - redis-64\tools\redis-server.exe --service-install
+  - redis-64\tools\redis-server.exe --service-start
+  - '@ECHO Redis Started'
+
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   # Check that we have the expected version and architecture for Python
   - "python --version"
