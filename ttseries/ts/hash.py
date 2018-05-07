@@ -25,6 +25,15 @@ class RedisHashTimeSeries(RedisTSBase):
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo max length to auto trim the redis data
     # todo implement auto move windows moving
+    # todo hscan
+    def count(self, name: str):
+        """
+        Time complexity: O(1)
+        :param name:
+        :return:
+        """
+        hash_key = self.hash_format.format(key=name)
+        return self.client.hlen(hash_key)
 
     def get(self, name, timestamp):
         """
@@ -54,7 +63,7 @@ class RedisHashTimeSeries(RedisTSBase):
         # remove oldest key store in data
         remove_key = key_id - self.max_length
 
-        watch_keys = (name, key_id)
+        watch_keys = (name, hash_key)
 
         def pipe_func(_pipe):  # trans function
 
@@ -140,22 +149,28 @@ class RedisHashTimeSeries(RedisTSBase):
             # redis delete command
             return self.client.delete(name, incr_key, hash_key)
 
-    def remove_many(self, keys, *args, **kwargs):
+    def remove_many(self, names, start_timestamp=None, end_timestamp=None):
         """
         remove many keys
-        :param keys:
-        :param args:
-        :param kwargs:
+        :param names:
+        :param start_timestamp:
+        :param end_timestamp:
         :return:
         """
-        chunks_data = ttseries.utils.chunks(keys, 10000)
-        for chunk_keys in chunks_data:
-            incr_chunks = map(lambda x: self.incr_format.format(key=x), chunk_keys)
-            hash_chunks = map(lambda x: self.hash_format.format(key=x), chunk_keys)
-            del_data = itertools.chain(chunk_keys, incr_chunks, hash_chunks)
-            self.client.delete(*del_data)
+        chunks_data = ttseries.utils.chunks(names, 10000)
 
-    def trim(self, name, length=1000):
+        if start_timestamp or end_timestamp:
+            for chunk_keys in chunks_data:
+                for name in chunk_keys:
+                    self.delete(name, start_timestamp, end_timestamp)
+        else:
+            for chunk_keys in chunks_data:
+                incr_chunks = map(lambda x: self.incr_format.format(key=x), chunk_keys)
+                hash_chunks = map(lambda x: self.hash_format.format(key=x), chunk_keys)
+                del_items = itertools.chain(chunk_keys, incr_chunks, hash_chunks)
+                self.client.delete(*del_items)
+
+    def trim(self, name, length: int):
         """
         trim redis sorted set key as the number of length,
         trim the data as the asc timestamp
@@ -163,27 +178,35 @@ class RedisHashTimeSeries(RedisTSBase):
         :param length:
         :return:
         """
-        if length >= self.count(name):
-            length = self.count(name)
-
-        incr_key = self.incr_format.format(key=name)
+        current_length = self.count(name)
         hash_key = self.hash_format.format(key=name)
 
-        begin = 0
-        end = length - 1
+        if current_length > length:
+            begin = 0  # start with 0 as the first set item
+            end = length - 1
 
-        result_data = self.client.zrange(name=name, start=begin, end=end, desc=False)
+            result_data = self.client.zrange(name=name,
+                                             start=begin,
+                                             end=end, desc=False)
 
-        if result_data:
-            with self._pipe_acquire() as pipe:
-                pipe.multi()
-                # pipe.decr(incr_key, length)
-                pipe.zremrangebyrank(name, min=begin, max=end)
-                pipe.hdel(hash_key, *result_data)
-                pipe.execute()
+            def pipe_func(_pipe):
+                _pipe.zremrangebyrank(name, min=begin, max=end)
+                _pipe.hdel(hash_key, *result_data)
 
-    def __getitem__(self, item):
-        pass
+            if result_data:
+                watch_keys = (name, hash_key)
+                self.transaction_pipe(pipe_func, watch_keys)
+
+        else:
+            self.delete(name)
+            # incr_key = self.incr_format.format(key=name)
+            #
+            # watch_keys = (name, hash_key, incr_key)
+            # def pipe_func(_pipe):
+            #     _pipe.zremrangebyrank(name, min=0, max=-1) # remove all data
+            #     _pipe.hdel(hash_key, *result_data)
+            #
+            # self.transaction_pipe(pipe_func, watch_keys)
 
     def get_slice(self, name, start=None, end=None,
                   start_index=None, limit=None, asc=True):
@@ -279,3 +302,6 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def iter(self):
         pass
+        # 	HSCAN key cursor [MATCH pattern] [COUNT count]
+        # 迭代哈希表
+        # ZSCAN key cursor [MATCH pattern] [COUNT count]

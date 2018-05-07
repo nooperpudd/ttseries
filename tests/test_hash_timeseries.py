@@ -278,68 +278,95 @@ class RedisStoreTest(unittest.TestCase):
             result = self.time_series.get(key, time)
             self.assertEqual(result, item)
 
-    # # ****************  test remove many ********************
-    # def test_remove_many(self):
-    #     keys = ["APPL:DAY:" + str(key) for key in range(20)]
-    #     data_list = self.generate_data(50)
-    #     for key in keys:
-    #         self.time_series.add_many(key, data_list)
-    #
-    #     remove_keys = keys[:5]
-    #     rest_keys = keys[5:]
-    #
-    #     self.time_series.remove_many(remove_keys)
-    #
-    #     for key in remove_keys:
-    #         self.assertFalse(self.time_series.exists(key))
-    #         self.assertFalse(self.time_series.client.exists(key + ":ID"))
-    #         self.assertFalse(self.time_series.client.exists(key + ":HASH"))
-    #
-    #     for key in rest_keys:
-    #         result = self.time_series.get_slice(key)
-    #         self.assertListEqual(data_list, result)
-    #
-    # # ****************  end remove many ********************
+    # ****************  test remove many ********************
+    def test_remove_many(self):
+        keys = ["APPL:DAY:" + str(key) for key in range(20)]
+        data_list = self.generate_data(10)
+        for key in keys:
+            for timestamp, item in data_list:
+                self.time_series.add(key, timestamp, item)
 
-    # # **************** end delete key ***************
+        remove_keys = keys[:5]
+        rest_keys = keys[5:]
 
-    # # **************** test trim ********************
-    #
-    # def test_trim(self):
-    #     key = "APPL:MINS:10"
-    #     data_list = self.generate_data(20)
-    #     self.time_series.add_many(key, data_list)
-    #
-    #     self.time_series.trim(key, 5)
-    #
-    #     self.assertEqual(self.time_series.count(key), 15)
-    #
-    #     data_list = sorted(data_list, key=lambda k: k[0])
-    #
-    #     result_data_list = data_list[5 - len(data_list):]
-    #     result_data = self.time_series.get_slice(key)
-    #
-    #     self.assertListEqual(result_data_list, result_data)
-    #
-    #     trim_data_list = data_list[:5]
-    #
-    #     for timestamp, _ in trim_data_list:
-    #         result = self.time_series.get(key, timestamp)
-    #         self.assertIsNone(result)
-    #
-    # def test_trim_length_none(self):
-    #     key = "APPL:MINS:15"
-    #     data_list = self.generate_data(30)
-    #     self.time_series.add_many(key, data_list)
-    #
-    #     self.time_series.trim(key)
-    #     self.assertEqual(self.time_series.count(key), 0)
-    #
-    #     result_data_list = data_list[1000:]
-    #     result_data = self.time_series.get_slice(key)
-    #     self.assertListEqual(result_data_list, result_data)
-    #
-    # # ****************  end test trim ********************
+        self.time_series.remove_many(remove_keys)
+
+        for key in remove_keys:
+            self.assertFalse(self.time_series.exists(key))
+            self.assertFalse(self.time_series.client.exists(key + ":ID"))
+            self.assertFalse(self.time_series.client.exists(key + ":HASH"))
+
+        for key in rest_keys:
+            result = self.time_series.get_slice(key)
+            self.assertListEqual(data_list, result)
+
+    def test_remove_many_with_start_end_timestamp(self):
+
+        keys = ["APPL:DAY:" + str(key) for key in range(20)]
+        data_list = self.generate_data(10)
+        for key in keys:
+            for timestamp, item in data_list:
+                self.time_series.add(key, timestamp, item)
+
+        start_timestamp = self.timestamp + 5
+        end_timestamp = self.timestamp + 8
+
+        self.time_series.remove_many(keys, start_timestamp, end_timestamp)
+
+        for item in data_list[:]:
+            if start_timestamp <= item[0] <= end_timestamp:
+                data_list.remove(item)
+                for key in keys:
+                    result = self.time_series.get(key, item[0])
+                    self.assertEqual(result, None)
+
+    # ****************  end remove many ********************
+
+    # **************** end delete key ***************
+
+    # **************** test trim ********************
+
+    def test_trim(self):
+        key = "APPL:MINS:10"
+        data_list = self.generate_data(20)
+        self.time_series.add_many(key, data_list)
+
+        self.time_series.trim(key, 5)
+
+        self.assertEqual(self.time_series.count(key), 15)
+
+        data_list = sorted(data_list, key=lambda k: k[0])
+
+        result_data_list = data_list[5 - len(data_list):]
+        result_data = self.time_series.get_slice(key)
+
+        self.assertListEqual(result_data_list, result_data)
+
+        trim_data_list = data_list[:5]
+
+        for timestamp, _ in trim_data_list:
+            result = self.time_series.get(key, timestamp)
+            self.assertIsNone(result)
+
+    def test_trim_length(self):
+        key = "APPL:MINS:15"
+        data_list = self.generate_data(10)
+        self.time_series.add_many(key, data_list)
+
+        self.time_series.trim(key,5)
+        self.assertEqual(self.time_series.count(key), 5)
+
+    def test_trim_lgt_max_length(self):
+
+        key = "APPL:MINS:15"
+        data_list = self.generate_data(10)
+
+        for timestamp, item in data_list:
+            self.time_series.add(key, timestamp, item)
+        self.time_series.trim(key,20)
+        self.assertEqual(self.time_series.get(key))
+
+    # ****************  end test trim ********************
     #
     # # ****************  test get slice  ********************
     # def test_get_slice_with_key(self):
