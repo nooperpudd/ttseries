@@ -147,9 +147,9 @@ class RedisHashTimeSeries(RedisTSBase):
 
                 self.transaction_pipe(pipe_func, watch_keys)
 
-            else:
-                # redis delete command
-                return self.client.delete(name, incr_key, hash_key)
+        else:
+            # redis delete command
+            return self.client.delete(name, incr_key, hash_key)
 
     def remove_many(self, names, start_timestamp=None, end_timestamp=None):
         """
