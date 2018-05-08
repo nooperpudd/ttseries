@@ -13,6 +13,7 @@ class RedisHashTimeSeries(RedisTSBase):
     use redis sorted set as the time-series
     sorted as the desc
     support max length 2**63-1
+    hash can store up to 2**32 - 1 field-value pairs
     """
     hash_format = "{key}:HASH"  # as the hash set id
 
@@ -24,15 +25,15 @@ class RedisHashTimeSeries(RedisTSBase):
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo max length to auto trim the redis data
     # todo implement auto move windows moving
-    # todo hscan
-    def count(self, name: str):
-        """
-        Time complexity: O(1)
-        :param name:
-        :return:
-        """
-        hash_key = self.hash_format.format(key=name)
-        return self.client.hlen(hash_key)
+    # todo scan command and
+    # def count(self, name: str):
+    #     """
+    #     Time complexity: O(1)
+    #     :param name:
+    #     :return:
+    #     """
+    #     hash_key = self.hash_format.format(key=name)
+    #     return self.client.hlen(hash_key)
 
     def get(self, name, timestamp):
         """
@@ -110,7 +111,7 @@ class RedisHashTimeSeries(RedisTSBase):
                 self.client.decr(incr_key)
                 raise e
             else:
-                if self.count(name) > self.max_length:
+                if self.length(name) > self.max_length:
                     self._auto_trim(name, key_id, hash_key)
 
                 return results
@@ -127,26 +128,28 @@ class RedisHashTimeSeries(RedisTSBase):
         hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
 
         if start_timestamp or end_timestamp:
-            if not start_timestamp:
-                start_timestamp = "-inf"
-            if not end_timestamp:
-                end_timestamp = "+inf"
-            result_data = self.client.zrangebyscore(name,
-                                                    min=start_timestamp,
-                                                    max=end_timestamp,
-                                                    withscores=False)
 
-            watch_keys = (name, hash_key)
+            if self.count(name, start_timestamp, end_timestamp) > 0:
+                if not start_timestamp:
+                    start_timestamp = "-inf"
+                if not end_timestamp:
+                    end_timestamp = "+inf"
+                result_data = self.client.zrangebyscore(name,
+                                                        min=start_timestamp,
+                                                        max=end_timestamp,
+                                                        withscores=False)
 
-            def pipe_func(_pipe):
-                _pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
-                _pipe.hdel(hash_key, *result_data)
+                watch_keys = (name, hash_key)
 
-            self.transaction_pipe(pipe_func, watch_keys)
+                def pipe_func(_pipe):
+                    _pipe.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
+                    _pipe.hdel(hash_key, *result_data)
 
-        else:
-            # redis delete command
-            return self.client.delete(name, incr_key, hash_key)
+                self.transaction_pipe(pipe_func, watch_keys)
+
+            else:
+                # redis delete command
+                return self.client.delete(name, incr_key, hash_key)
 
     def remove_many(self, names, start_timestamp=None, end_timestamp=None):
         """
@@ -177,7 +180,7 @@ class RedisHashTimeSeries(RedisTSBase):
         :param length:
         :return:
         """
-        current_length = self.count(name)
+        current_length = self.length(name)
         hash_key = self.hash_format.format(key=name)
 
         if current_length > length:
@@ -223,16 +226,10 @@ class RedisHashTimeSeries(RedisTSBase):
             zrange_func = self.client.zrevrangebyscore
 
         if start_timestamp is None:
-            start_timestamp = "-inf"  # todo test order maybe +inf
+            start_timestamp = "-inf"
 
         if end_timestamp is None:
             end_timestamp = "+inf"
-
-        # if start_type == "gt":
-        #     start_timestamp = "(" + start_timestamp
-        #
-        # if end_type == "lt":
-        #     end_timestamp = "(" + end_timestamp
 
         if start_index is None:
             start_index = 0
