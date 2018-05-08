@@ -1,4 +1,4 @@
-git+https://github.com/nooperpudd/hiredis-py.git@master#egg=hiredis
+# git+https://github.com/nooperpudd/hiredis-py.git@master#egg=hiredis
 redis==2.10.6
 pytz>=2018.3
 pytest
