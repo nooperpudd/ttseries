@@ -1,57 +1,74 @@
 # encoding:utf-8
-import numpy as np
-import redis
-from ttseries.ts.base import RedisTSBase
 import itertools
+
+import numpy as np
+
+from ttseries.ts.base import RedisTSBase
+import ttseries.utils
 
 class RedisSampleTimeSeries(RedisTSBase):
     """
     ! important
     """
 
-    def _auto_trim(self):
-        pass
-
     def add(self, name: str, timestamp, data):
+
         data = self._serializer.dumps(data)
 
         with self._lock:
             if self.length(name) > self.max_length:
-                pass
-            else:
-                return self.client.zadd(name, timestamp, data)
+                self.client.zremrangebyrank(name, min=0, max=0)
 
-    def add_many(self, name, array: np.array):
+            return self.client.zadd(name, timestamp, data)
+
+    def add_many(self, name, array: np.array,chunk_size=1000):
+        """
+        array data likes: [[1,"a"],[2,"b"],[3,"c"],...]
+        :param name:
+        :param array:
+        :return:
+        """
         array_length = len(array)
 
         if array_length + self.length(name) > self.max_length:
-            pass
+            trim_length = array_length + self.length(name) - self.max_length
+            self.trim(name, trim_length)
 
-        def pipe_func(_pipe):
-            pass
+        serializer_func = np.vectorize(self._serializer.dumps)
+        for item in ttseries.utils.chunks_numpy(array,1000):
 
-        self.transaction_pipe(pipe_func, watch_keys=name)
+            for inner in item:
+
+                def pipe_func(_pipe):
+                        _pipe.zadd(name, *inner.tolist())
+                self.transaction_pipe(pipe_func, watch_keys=name)
 
     def get(self, name: str, timestamp):
+        """
+        :param name:
+        :param timestamp:
+        :return:
+        """
         result = self.client.zrangebyscore(name, min=timestamp,
                                            max=timestamp)
         return self._serializer.loads(result)
 
     def delete(self, name: str, start_timestamp=None, end_timestamp=None):
 
-        if start_timestamp or end_timestamp:
-            if start_timestamp is None:
-                start_timestamp = "-inf"
-            if end_timestamp is None:
-                end_timestamp = "+inf"
-            self.client.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
-        else:
-            self.client.delete(name)
+        with self._lock:
+            if start_timestamp or end_timestamp:
+                if start_timestamp is None:
+                    start_timestamp = "-inf"
+                if end_timestamp is None:
+                    end_timestamp = "+inf"
+                self.client.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
+            else:
+                self.client.delete(name)
 
     def iter(self, name):
         pass
 
-    def trim(self,name, length):
+    def trim(self, name, length):
         """
 
         :param name:
@@ -59,18 +76,26 @@ class RedisSampleTimeSeries(RedisTSBase):
         :return:
         """
         current_length = self.length(name)
+        with self._lock:
+            if current_length > length:
+                begin = 0  # start with 0 as the first set item
+                end = length - 1
+                self.client.zremrangebyrank(name, min=begin, max=end)
 
-        if current_length > length:
-            begin = 0  # start with 0 as the first set item
-            end = length - 1
-
-            self.client.zremrangebyrank(name, min=begin, max=end)
-
-        else:
-            self.delete(name)
+            else:
+                self.delete(name)
 
     def get_slice(self, name, start_timestamp=None,
-                  end_timestamp=None,limit=None,asc=True):
+                  end_timestamp=None, limit=None, asc=True):
+        """
+
+        :param name:
+        :param start_timestamp:
+        :param end_timestamp:
+        :param limit:
+        :param asc:
+        :return:
+        """
 
         if asc:
             zrange_func = self.client.zrangebyscore
@@ -93,6 +118,3 @@ class RedisSampleTimeSeries(RedisTSBase):
             value, timestamps = list(itertools.zip_longest(*results_ids))
             iter_dumps = map(self._serializer.loads, value)
             return list(itertools.zip_longest(timestamps, iter_dumps))
-
-
-
