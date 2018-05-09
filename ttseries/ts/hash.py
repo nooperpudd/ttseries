@@ -4,7 +4,7 @@ import itertools
 from operator import itemgetter
 
 import ttseries.utils
-from .base import RedisTSBase
+from ttseries.ts.base import RedisTSBase
 
 
 class RedisHashTimeSeries(RedisTSBase):
