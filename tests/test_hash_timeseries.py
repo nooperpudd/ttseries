@@ -5,9 +5,10 @@ import unittest
 import redis
 
 from ttseries import RedisHashTimeSeries
+from . import TestMixin
 
 
-class RedisStoreTest(unittest.TestCase):
+class RedisStoreTest(unittest.TestCase, TestMixin):
     def setUp(self):
         redis_client = redis.StrictRedis()
         self.time_series = RedisHashTimeSeries(redis_client, max_length=10)
@@ -15,14 +16,6 @@ class RedisStoreTest(unittest.TestCase):
 
     def tearDown(self):
         self.time_series.flush()
-
-    def generate_data(self, length):
-        data_list = []
-        for i in range(length):
-            timestamp = self.timestamp + i
-            data = {"value": i}
-            data_list.append((timestamp, data))
-        return data_list
 
     # **************** add func ***************
     def test_add(self):
@@ -96,14 +89,7 @@ class RedisStoreTest(unittest.TestCase):
         result = self.time_series.get(key, self.timestamp)
         self.assertDictEqual(data, result)
 
-    def test_count(self):
-        key = "APPL:SECOND"
 
-        results = self.generate_data(10)
-        for item in results:
-            self.time_series.add(key, item[0], item[1])
-
-        self.assertEqual(self.time_series.count(key), 10)
 
     # **************** delete key ***************
 

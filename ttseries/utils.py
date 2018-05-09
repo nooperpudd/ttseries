@@ -1,15 +1,17 @@
 # encoding:utf-8
 import itertools
+
 import numpy as np
 
-def chunks_numpy(array:np.array,chunk_size=2000):
+
+def chunks_numpy(array: np.array, chunk_size=2000):
     """
     :return:
     """
     length = len(array)
     if length > chunk_size:
-        chunk = int(length/chunk_size)
-        for item in np.array_split(array,chunk):
+        chunk = int(length / chunk_size)
+        for item in np.array_split(array, chunk):
             yield item
     else:
         yield array
