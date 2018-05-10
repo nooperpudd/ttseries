@@ -3,8 +3,9 @@ import itertools
 
 import numpy as np
 
-from ttseries.ts.base import RedisTSBase
 import ttseries.utils
+from ttseries.ts.base import RedisTSBase
+
 
 class RedisSampleTimeSeries(RedisTSBase):
     """
@@ -16,12 +17,12 @@ class RedisSampleTimeSeries(RedisTSBase):
         data = self._serializer.dumps(data)
 
         with self._lock:
-            if self.length(name) > self.max_length:
+            if self.length(name) >= self.max_length:
                 self.client.zremrangebyrank(name, min=0, max=0)
+            if not self.exist_timestamp(name, timestamp):
+                return self.client.zadd(name, timestamp, data)
 
-            return self.client.zadd(name, timestamp, data)
-
-    def add_many(self, name, array: np.array,chunk_size=1000):
+    def add_many(self, name, array: np.array, chunk_size=1000):
         """
         array data likes: [[1,"a"],[2,"b"],[3,"c"],...]
         :param name:
@@ -33,14 +34,14 @@ class RedisSampleTimeSeries(RedisTSBase):
         if array_length + self.length(name) > self.max_length:
             trim_length = array_length + self.length(name) - self.max_length
             self.trim(name, trim_length)
-
+        # todo check exists
         serializer_func = np.vectorize(self._serializer.dumps)
-        for item in ttseries.utils.chunks_numpy(array,1000):
+        for item in ttseries.utils.chunks_numpy(array, 1000):
 
             for inner in item:
-
                 def pipe_func(_pipe):
-                        _pipe.zadd(name, *inner.tolist())
+                    _pipe.zadd(name, *inner.tolist())
+
                 self.transaction_pipe(pipe_func, watch_keys=name)
 
     def get(self, name: str, timestamp):
@@ -49,9 +50,9 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param timestamp:
         :return:
         """
-        result = self.client.zrangebyscore(name, min=timestamp,
-                                           max=timestamp)
-        return self._serializer.loads(result)
+        result = self.client.zrangebyscore(name, min=timestamp, max=timestamp)
+        if result:
+            return self._serializer.loads(result[0])
 
     def delete(self, name: str, start_timestamp=None, end_timestamp=None):
 
