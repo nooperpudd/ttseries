@@ -149,7 +149,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
         else:
             # redis delete command
-            return self.client.delete(name, incr_key, hash_key)
+            self.client.delete(name, incr_key, hash_key)
 
     def remove_many(self, names, start_timestamp=None, end_timestamp=None):
         """

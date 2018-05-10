@@ -16,6 +16,21 @@ class Mixin(object):
             self.time_series.add(key, item[0], item[1])
         return key
 
+    def add_data_list(self, data):
+
+        key = "APPL:SECOND:1"
+        for item in data:
+            self.time_series.add(key, item[0], item[1])
+        return key
+
+    def prepare_many_data(self, data_list):
+
+        keys = ["APPL:DAY:" + str(key) for key in range(20)]
+        for key in keys:
+            for timestamp, item in data_list:
+                self.time_series.add(key, timestamp, item)
+        return keys
+
     def test_add(self):
         key = "APPL:SECOND:1"
 
@@ -81,3 +96,207 @@ class Mixin(object):
         self.time_series.add(key, self.timestamp, data)
         result = self.time_series.get(key, self.timestamp)
         self.assertDictEqual(data, result)
+
+    def test_delete_one_timestamp(self):
+        """
+        test delete with only one timestamp
+        :return:
+        """
+        key = "APPL:SECOND:6"
+        data = {"value": 10.3}
+        self.time_series.add(key, self.timestamp, data)
+        self.time_series.delete(key, start_timestamp=self.timestamp,
+                                end_timestamp=self.timestamp)
+        self.assertEqual(self.time_series.count(key), 0)
+        self.assertFalse(self.time_series.exist_timestamp(key, self.timestamp))
+
+    def test_delete_with_start_timestamp(self):
+        """
+        test delete with start timestamp
+        :return:
+        """
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+        start_timestamp = self.timestamp + 3  # delete from start timestamp
+
+        self.time_series.delete(key, start_timestamp=start_timestamp)
+        self.assertEqual(self.time_series.count(key), 3)
+
+        for item in data_list[:]:
+            if item[0] >= start_timestamp:
+                data_list.remove(item)
+                result = self.time_series.get(key, item[0])
+                self.assertEqual(result, None)
+
+        for time, item in data_list:
+            result = self.time_series.get(key, time)
+            self.assertEqual(result, item)
+
+    def test_delete_with_end_timestamp(self):
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        end_timestamp = self.timestamp + 5
+
+        self.time_series.delete(key, end_timestamp=end_timestamp)
+        self.assertEqual(self.time_series.count(key), 4)
+
+        for item in data_list[:]:
+            if item[0] <= end_timestamp:
+                data_list.remove(item)
+                result = self.time_series.get(key, item[0])
+                self.assertEqual(result, None)
+
+        for time, item in data_list:
+            result = self.time_series.get(key, time)
+            self.assertEqual(result, item)
+
+    def test_delete_with_start_and_end(self):
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        start_timestamp = self.timestamp + 3
+        end_timestamp = self.timestamp + 6
+
+        self.time_series.delete(key, start_timestamp=start_timestamp,
+                                end_timestamp=end_timestamp)
+        self.assertEqual(self.time_series.count(key), 6)
+
+        for item in data_list[:]:
+            if start_timestamp <= item[0] <= end_timestamp:
+                data_list.remove(item)
+                result = self.time_series.get(key, item[0])
+                self.assertEqual(result, None)
+
+        for time, item in data_list:
+            result = self.time_series.get(key, time)
+            self.assertEqual(result, item)
+
+    def test_delete_with_max_length_auto_trim(self):
+        """
+        :return:
+        """
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        new_data = {"value": 12}
+        new_data2 = {"value": 13}
+        new_timestamp = self.timestamp + 10
+        new_timestamp2 = self.timestamp + 11
+
+        self.time_series.add(key, new_timestamp, new_data)
+        self.time_series.add(key, new_timestamp2, new_data2)
+
+        data_list.append((new_timestamp, new_data))
+        data_list.append((new_timestamp2, new_data2))
+
+        data_list.pop(0)  # remove data list first item
+        data_list.pop(0)
+
+        start_timestamp = self.timestamp + 8
+
+        self.time_series.delete(name=key, start_timestamp=start_timestamp)
+
+        for item in data_list[:]:
+            if item[0] >= start_timestamp:
+                data_list.remove(item)
+                result = self.time_series.get(key, item[0])
+                self.assertEqual(result, None)
+        for time, item in data_list:
+            result = self.time_series.get(key, time)
+            self.assertEqual(result, item)
+
+    def test_delete_with_max_length_trim_start_and_end_timestamp(self):
+        """
+        :return:
+        """
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        new_data = {"value": 12}
+        new_data2 = {"value": 13}
+        new_timestamp = self.timestamp + 10
+        new_timestamp2 = self.timestamp + 11
+
+        self.time_series.add(key, new_timestamp, new_data)
+        self.time_series.add(key, new_timestamp2, new_data2)
+
+        data_list.append((new_timestamp, new_data))
+        data_list.append((new_timestamp2, new_data2))
+
+        data_list.pop(0)  # remove data list first item
+        data_list.pop(0)
+
+        start_timestamp = self.timestamp + 8
+        end_timestamp = self.timestamp + 10
+        self.time_series.delete(name=key,
+                                start_timestamp=start_timestamp,
+                                end_timestamp=end_timestamp)
+
+        for item in data_list[:]:
+            if start_timestamp <= item[0] <= end_timestamp:
+                data_list.remove(item)
+                result = self.time_series.get(key, item[0])
+                self.assertEqual(result, None)
+        for time, item in data_list:
+            result = self.time_series.get(key, time)
+            self.assertEqual(result, item)
+
+    def test_remove_many_with_start_end_timestamp(self):
+
+        data_list = self.generate_data(10)
+
+        keys = self.prepare_many_data(data_list)
+
+        start_timestamp = self.timestamp + 5
+        end_timestamp = self.timestamp + 8
+
+        self.time_series.remove_many(keys, start_timestamp, end_timestamp)
+
+        for item in data_list[:]:
+            if start_timestamp <= item[0] <= end_timestamp:
+                data_list.remove(item)
+                for key in keys:
+                    result = self.time_series.get(key, item[0])
+                    self.assertEqual(result, None)
+
+    def test_trim(self):
+
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        self.time_series.trim(key, 5)
+
+        self.assertEqual(self.time_series.length(key), 5)
+
+        data_list = sorted(data_list, key=lambda k: k[0])
+
+        result_data_list = data_list[5 - len(data_list):]
+
+        result_data = self.time_series.get_slice(key)
+
+        self.assertListEqual(result_data_list, result_data)
+
+        trim_data_list = data_list[:5]
+
+        for timestamp, _ in trim_data_list:
+            self.assertIsNone(self.time_series.get(key, timestamp))
+
+    def test_trim_lgt_max_length(self):
+
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        self.time_series.trim(key, 20)
+
+        self.assertEqual(self.time_series.length(key), 0)
+
+
+
+

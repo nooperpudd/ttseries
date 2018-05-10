@@ -66,6 +66,24 @@ class RedisSampleTimeSeries(RedisTSBase):
             else:
                 self.client.delete(name)
 
+    def remove_many(self, names, start_timestamp=None, end_timestamp=None):
+        """
+        remove many keys
+        :param names:
+        :param start_timestamp:
+        :param end_timestamp:
+        :return:
+        """
+        chunks_data = ttseries.utils.chunks(names, 10000)
+
+        if start_timestamp or end_timestamp:
+            for chunk_keys in chunks_data:
+                for name in chunk_keys:
+                    self.delete(name, start_timestamp, end_timestamp)
+        else:
+            for chunk_keys in chunks_data:
+                self.client.delete(*chunk_keys)
+
     def iter(self, name):
         pass
 

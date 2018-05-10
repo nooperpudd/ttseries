@@ -8,7 +8,7 @@ from ttseries import RedisSampleTimeSeries
 from .mixin import Mixin
 
 
-class SimpleTsTest(unittest.TestCase, Mixin):
+class RedisSimpleTSTest(unittest.TestCase, Mixin):
 
     def setUp(self):
         redis_client = redis.StrictRedis()
@@ -17,6 +17,31 @@ class SimpleTsTest(unittest.TestCase, Mixin):
 
     def tearDown(self):
         self.time_series.flush()
+
+    def test_delete_key(self):
+        key = "APPL:SECOND:5"
+        data = {"value": 10.4}
+        self.time_series.add(key, self.timestamp, data)
+        self.time_series.delete(key)
+
+        self.assertFalse(self.time_series.exists(key))
+
+    def test_remove_many(self):
+
+        data_list = self.generate_data(10)
+        keys = self.prepare_many_data(data_list)
+
+        remove_keys = keys[:5]
+        rest_keys = keys[5:]
+
+        self.time_series.remove_many(remove_keys)
+
+        for key in remove_keys:
+            self.assertFalse(self.time_series.exists(key))
+
+        for key in rest_keys:
+            result = self.time_series.get_slice(key)
+            self.assertListEqual(data_list, result)
 
     def test_add_many(self):
         pass
@@ -27,8 +52,6 @@ class SimpleTsTest(unittest.TestCase, Mixin):
     def test_delete_with_timestamp(self):
         pass
 
-    def test_trim(self):
-        pass
 
     def test_get_slice(self):
         pass
