@@ -44,7 +44,48 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
             self.assertListEqual(data_list, result)
 
     def test_add_many(self):
-        pass
+
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+
+        self.time_series.add_many(key, data_list)
+        results = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, results)
 
     def test_add_many_max_length(self):
-        pass
+
+        data_list = self.generate_data(20)
+        key = self.add_data_list(data_list)
+
+        self.time_series.add_many(key, data_list)
+        results = self.time_series.get_slice(key)
+
+        filter_data = data_list[10:]
+        removed_data = data_list[:10]
+        self.assertListEqual(results, filter_data)
+        start_timestamp = removed_data[0][0]
+        end_timestamp = removed_data[-1][0]
+        self.assertEqual(self.time_series.count(key, start_timestamp,
+                                                end_timestamp), 0)
+
+    def test_add_max_length_complete(self):
+
+        data_list = self.generate_data(40)
+        key = self.add_data_list(data_list)
+        data_list1 = data_list[:20]
+        data_list2 = data_list[20:40]
+
+        # add data list 1
+        self.time_series.add_many(key, data_list1)
+        filter_data1 = data_list1[10:]
+
+        results1 = self.time_series.get_slice(key)
+        self.assertListEqual(results1, filter_data1)
+
+        self.time_series.add_many(key,data_list2)
+
+        filter_data2 = data_list2[10:]
+        results2 = self.time_series.get_slice(key)
+        self.assertListEqual(results2, filter_data2)
+
+

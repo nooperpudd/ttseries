@@ -1,5 +1,7 @@
 # encoding:utf-8
 
+import itertools
+
 import numpy as np
 
 import ttseries.utils
@@ -21,19 +23,36 @@ class RedisSampleTimeSeries(RedisTSBase):
             if not self.exist_timestamp(name, timestamp):
                 return self.client.zadd(name, timestamp, data)
 
-    def add_many(self, name, array: np.array, chunk_size=1000):
+    def add_many(self, name, timestamp_pairs, chunk_size=2000):
+        """
+
+        :param name:
+        :param timestamp_pairs:
+        :param chunk_size:
+        :return:
+        """
+        timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
+
+        for item in ttseries.utils.chunks(timestamp_pairs, chunk_size):
+            filter_data = map(lambda x: (x[0], self._serializer.dumps(x[1])), item)
+            filter_data = itertools.chain.from_iterable(filter_data)
+
+            def pipe_func(_pipe):
+                _pipe.zadd(name, *tuple(filter_data))
+
+            self.transaction_pipe(pipe_func, watch_keys=name)
+
+    def add_many_with_numpy(self, name, array, timestamp_name="timestamp", chunk_size=1000):
         """
         array data likes: [[1,"a"],[2,"b"],[3,"c"],...]
         :param name:
         :param array:
+        :param timestamp_name:
         :return:
         """
-        array_length = len(array)
+        self._add_many_validate(name, array)
 
-        if array_length + self.length(name) > self.max_length:
-            trim_length = array_length + self.length(name) - self.max_length
-            self.trim(name, trim_length)
-        # todo check exists
+        # array[:, 1::]
         serializer_func = np.vectorize(self._serializer.dumps)
         for item in ttseries.utils.chunks_numpy(array, 1000):
 
@@ -114,7 +133,6 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param asc:
         :return:
         """
-
         if asc:
             zrange_func = self.client.zrangebyscore
         else:

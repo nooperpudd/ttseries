@@ -1,7 +1,6 @@
 # encoding:utf-8
 
 import itertools
-from operator import itemgetter
 
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
@@ -18,22 +17,12 @@ class RedisHashTimeSeries(RedisTSBase):
     hash_format = "{key}:HASH"  # as the hash set id
 
     # todo support redis cluster
-
     # todo support parllizem and mulit threading
     # todo support numpy, best for memory
     #
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo implement auto move windows moving
     # todo scan command and
-
-    # def count(self, name: str):
-    #     """
-    #     Time complexity: O(1)
-    #     :param name:
-    #     :return:
-    #     """
-    #     hash_key = self.hash_format.format(key=name)
-    #     return self.client.hlen(hash_key)
 
     def get(self, name, timestamp):
         """
@@ -212,9 +201,6 @@ class RedisHashTimeSeries(RedisTSBase):
         :param name:
         :param start_timestamp:
         :param end_timestamp:
-        :param start_type:
-        :param end_type:
-        :param start_index:
         :param limit:
         :param asc:
         :return:
@@ -245,35 +231,21 @@ class RedisHashTimeSeries(RedisTSBase):
             iter_dumps = map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
 
-    def add_many(self, name, timestamp_pairs, chunks_size=2000, *args, **kwargs):
+    def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
         :param name:
         :param timestamp_pairs: [("timestamp",data)]
         :param chunks_size:
-        :param args:
-        :param kwargs:
         :return:
         """
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
-        # remove exist data
+        sorted_timestamps = self._add_many_validate(name, timestamp_pairs)
 
-        # todo maybe other way to optimize this filter code
-        sorted_timestamps = sorted(timestamp_pairs, key=itemgetter(0))
+        chunks_data = ttseries.utils.chunks(sorted_timestamps, chunks_size)
 
-        max_timestamp = sorted_timestamps[-1][0]  # max
-        min_timestamp = sorted_timestamps[0][0]  # min
-
-        filter_data = self.get_slice(name, start_timestamp=min_timestamp,
-                                     end_timestamp=max_timestamp)
-        if filter_data:
-            timestamp_set = set(map(lambda x: x[0], filter_data))
-            filter_results = itertools.filterfalse(lambda x: x[0] in timestamp_set, sorted_timestamps)
-        else:
-            filter_results = sorted_timestamps
-        chunks_data = ttseries.utils.chunks(filter_results, chunks_size)
-
+        
         with self._pipe_acquire() as pipe:
             for chunks in chunks_data:
                 start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
@@ -299,6 +271,9 @@ class RedisHashTimeSeries(RedisTSBase):
                 pipe.zadd(name, *timestamp_ids)
                 pipe.hmset(hash_key, ids_values)
                 pipe.execute()
+
+    def add_many_with_numpy(self, name, array, chunk_size=2000):
+        pass
 
     def iter(self):
         pass
