@@ -103,14 +103,14 @@ class RedisTSBase(object):
         """
         self.client.flushdb()
 
-    def length(self,name):
+    def length(self, name):
         """
         Time complexity: O(1)
         :return:
         """
         return self.client.zcard(name)
 
-    def count(self, name: str, start_timestamp=None,end_timestamp=None):
+    def count(self, name, start_timestamp=None, end_timestamp=None):
         """
         Time complexity: O(log(N)) with N being
         the number of elements in the sorted set.
@@ -123,8 +123,7 @@ class RedisTSBase(object):
             start_timestamp = "-inf"
         if end_timestamp is None:
             end_timestamp = "+inf"
-        return self.client.zcount(name, min=start_timestamp,
-                                  max=end_timestamp)
+        return self.client.zcount(name, min=start_timestamp, max=end_timestamp)
 
     def exists(self, name):
         """
