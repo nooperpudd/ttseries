@@ -297,6 +297,129 @@ class Mixin(object):
 
         self.assertEqual(self.time_series.length(key), 0)
 
+    def test_get_slice_with_key(self):
 
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
 
+        result_data = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, result_data)
 
+    def test_get_slice_with_key_desc(self):
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+        result_data = self.time_series.get_slice(key, asc=False)
+
+        reversed_data = sorted(data_list, key=lambda tup: tup[0], reverse=True)
+
+        self.assertListEqual(reversed_data, result_data)
+
+    def test_get_slice_with_start_timestamp(self):
+        """
+        test get slice with start timestamp
+        :return:
+        """
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        start = self.timestamp + 6
+        result_data = self.time_series.get_slice(key, start_timestamp=start)
+
+        filter_data = list(filter(lambda seq: seq[0] >= start, data_list))
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_gt_start_timestamp(self):
+
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+
+        start = self.timestamp + 6
+        start_timestamp = "(" + str(start)
+        result_data = self.time_series.get_slice(key, start_timestamp=start_timestamp)
+
+        filter_data = list(filter(lambda seq: seq[0] > start, data_list))
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_start_timestamp_limit(self):
+
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        start = self.timestamp + 5
+        result_data = self.time_series.get_slice(key, start_timestamp=start, limit=3)
+
+        filter_data = list(filter(lambda seq: seq[0] >= start, data_list))
+        filter_data = filter_data[:3]
+
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_start_timestamp_desc(self):
+
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        start = self.timestamp + 6
+        start_timestamp = "(" + str(start)
+        result_data = self.time_series.get_slice(key,
+                                                 start_timestamp=start_timestamp, asc=False)
+
+        filter_data = list(filter(lambda seq: seq[0] > start, data_list))
+        filter_data = list(reversed(filter_data))
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_end_timestamp(self):
+        """
+        test get slice only with end timestamp
+        :return:
+        """
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+
+        end = self.timestamp + 6
+
+        result_data = self.time_series.get_slice(key, end_timestamp=end)
+        filter_data = list(filter(lambda seq: seq[0] <= end, data_list))
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_timestamp(self):
+
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        start = self.timestamp + 6
+        end = self.timestamp + 10
+        result_data = self.time_series.get_slice(key, start, end)
+        filter_data = list(filter(lambda seq: start <= seq[0] <= end, data_list))
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_with_start_length(self):
+        data_list = self.generate_data(10)
+
+        key = self.add_data_list(data_list)
+
+        result_data = self.time_series.get_slice(key, limit=5)
+        filter_data = data_list[:5]
+        self.assertEqual(result_data, filter_data)
+
+    def test_get_slice_start_end_time_order(self):
+
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+
+        start_timestamp = self.timestamp + 3
+        end_timestamp = self.timestamp + 6
+
+        result_data = self.time_series.get_slice(key,
+                                                 start_timestamp=start_timestamp,
+                                                 end_timestamp=end_timestamp,
+                                                 asc=False)
+
+        data_list = data_list[3:7]
+        filter_data = list(reversed(data_list))
+        self.assertListEqual(result_data, filter_data)

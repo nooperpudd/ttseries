@@ -48,22 +48,3 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
 
     def test_add_many_max_length(self):
         pass
-
-    def test_delete_with_timestamp(self):
-        pass
-
-
-    def test_get_slice(self):
-        pass
-
-    def test_get_slice_with_desc(self):
-        pass
-
-    def test_get_slice_with_start_end(self):
-        pass
-
-    def test_get_slice_with_start_limit(self):
-        pass
-
-    def test_get_slice_with_start_end_desc(self):
-        pass

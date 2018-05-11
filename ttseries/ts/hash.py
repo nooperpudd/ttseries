@@ -202,8 +202,7 @@ class RedisHashTimeSeries(RedisTSBase):
         else:
             self.delete(name)
 
-    def get_slice(self, name, start_timestamp=None, end_timestamp=None,
-                  start_index=None, limit=None, asc=True):
+    def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
         """
         zrangebyscore or zrevrangebyscore
 
@@ -231,16 +230,13 @@ class RedisHashTimeSeries(RedisTSBase):
         if end_timestamp is None:
             end_timestamp = "+inf"
 
-        if start_index is None:
-            start_index = 0
-
         if limit is None:
             limit = -1
 
         hash_key = self.hash_format.format(key=name)
 
         results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
-                                  withscores=True, start=start_index, num=limit)
+                                  withscores=True, start=0, num=limit)
 
         if results_ids:
             # sorted as the order data
