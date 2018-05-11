@@ -1,5 +1,4 @@
 # encoding:utf-8
-import itertools
 
 import numpy as np
 
@@ -128,12 +127,12 @@ class RedisSampleTimeSeries(RedisTSBase):
         if limit is None:
             limit = -1
 
-        results_ids = zrange_func(name, min=start_timestamp,
-                                  max=end_timestamp,
-                                  withscores=True, start=0, num=limit)
+        results = zrange_func(name, min=start_timestamp,
+                              max=end_timestamp,
+                              withscores=True, start=0, num=limit)
 
-        if results_ids:
-            # todo fix this
-            value, timestamps = list(itertools.zip_longest(*results_ids))
-            iter_dumps = map(self._serializer.loads, value)
-            return list(itertools.zip_longest(timestamps, iter_dumps))
+        if results:
+            # [(b'\x81\xa5value\x00', 1526008483.331131),...]
+
+            return list(map(lambda x: (x[1], self._serializer.loads(x[0])),
+                            results))

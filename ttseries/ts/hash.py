@@ -23,9 +23,9 @@ class RedisHashTimeSeries(RedisTSBase):
     # todo support numpy, best for memory
     #
     # todo test many item data execute how much could support 10000? 100000? 10000000?
-    # todo max length to auto trim the redis data
     # todo implement auto move windows moving
     # todo scan command and
+
     # def count(self, name: str):
     #     """
     #     Time complexity: O(1)

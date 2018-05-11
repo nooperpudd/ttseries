@@ -110,7 +110,7 @@ class RedisTSBase(object):
         """
         return self.client.zcard(name)
 
-    def count(self, name: str, start_timestamp=None, end_timestamp=None):
+    def count(self, name, start_timestamp=None, end_timestamp=None):
         """
         Time complexity: O(log(N)) with N being
         the number of elements in the sorted set.
