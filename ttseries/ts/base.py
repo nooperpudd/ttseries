@@ -178,15 +178,16 @@ class RedisTSBase(object):
 
         if array_length + self.length(name) >= self.max_length:
             trim_length = array_length + self.length(name) - self.max_length
+
             self.trim(name, trim_length)
         if array_length > self.max_length:
-
             array_data = array_data[array_length - self.max_length:]
 
         if isinstance(array_data, list):
             # todo maybe other way to optimize this filter code
             sorted_data = sorted(array_data, key=itemgetter(0))
             end_timestamp = sorted_data[-1][0]  # max
+
             start_timestamp = sorted_data[0][0]  # min
 
         elif isinstance(array_data, np.ndarray):
@@ -196,7 +197,7 @@ class RedisTSBase(object):
             raise RedisTimeSeriesException("nonsupport array data type")
 
         if self.count(name, start_timestamp, end_timestamp) > 0:
+
             raise RedisTimeSeriesException("exist timestamp in redis")
         else:
             return array_data
-

@@ -5,6 +5,7 @@ import unittest
 import redis
 
 from ttseries import RedisSampleTimeSeries
+from ttseries.exceptions import RedisTimeSeriesException
 from .mixin import Mixin
 
 
@@ -46,7 +47,7 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
     def test_add_many(self):
 
         data_list = self.generate_data(10)
-        key = self.add_data_list(data_list)
+        key = "AAPL:SECOND"
 
         self.time_series.add_many(key, data_list)
         results = self.time_series.get_slice(key)
@@ -55,7 +56,7 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
     def test_add_many_max_length(self):
 
         data_list = self.generate_data(20)
-        key = self.add_data_list(data_list)
+        key = "AAPL:SECOND"
 
         self.time_series.add_many(key, data_list)
         results = self.time_series.get_slice(key)
@@ -68,10 +69,11 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
         self.assertEqual(self.time_series.count(key, start_timestamp,
                                                 end_timestamp), 0)
 
-    def test_add_max_length_complete(self):
+    def test_add_many_max_length_complete(self):
 
         data_list = self.generate_data(40)
-        key = self.add_data_list(data_list)
+        key = "AAPL:SECOND"
+
         data_list1 = data_list[:20]
         data_list2 = data_list[20:40]
 
@@ -82,10 +84,20 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
         results1 = self.time_series.get_slice(key)
         self.assertListEqual(results1, filter_data1)
 
-        self.time_series.add_many(key,data_list2)
+        self.time_series.add_many(key, data_list2)
 
         filter_data2 = data_list2[10:]
         results2 = self.time_series.get_slice(key)
         self.assertListEqual(results2, filter_data2)
 
+    def test_add_max_length_with_assertError(self):
 
+        data_list = self.generate_data(5)
+        key = "AAPL:SECOND:50"
+
+        with self.assertRaises(RedisTimeSeriesException):
+            self.time_series.add_many(key, data_list)
+            self.assertEqual(self.time_series.count(key), 5)
+            results = self.time_series.get_slice(key)
+            self.assertListEqual(results, data_list)
+            self.time_series.add_many(key, data_list)

@@ -169,10 +169,11 @@ class RedisHashTimeSeries(RedisTSBase):
         :param length:
         :return:
         """
+        length = int(length)
         current_length = self.length(name)
         hash_key = self.hash_format.format(key=name)
 
-        if current_length > length:
+        if current_length > length > 0:
             begin = 0  # start with 0 as the first set item
             end = length - 1
 
@@ -187,8 +188,8 @@ class RedisHashTimeSeries(RedisTSBase):
             if result_data:
                 watch_keys = (name, hash_key)
                 self.transaction_pipe(pipe_func, watch_keys)
+        elif length >= current_length:
 
-        else:
             self.delete(name)
 
     def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
@@ -245,7 +246,6 @@ class RedisHashTimeSeries(RedisTSBase):
 
         chunks_data = ttseries.utils.chunks(sorted_timestamps, chunks_size)
 
-        
         with self._pipe_acquire() as pipe:
             for chunks in chunks_data:
                 start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0

@@ -9,9 +9,9 @@ class Mixin(object):
         return data_list
 
     def prepare_data(self):
-
         key = "APPL:SECOND:1"
         results = self.generate_data(10)
+
         for item in results:
             self.time_series.add(key, item[0], item[1])
         return key
@@ -84,6 +84,7 @@ class Mixin(object):
         key = self.prepare_data()
         start_timestamp = self.timestamp + 5
         self.assertEqual(self.time_series.count(key, start_timestamp), 5)
+        self.assertEqual(self.time_series.count(key, self.timestamp, self.timestamp + 10), 10)
 
     def test_length(self):
         key = self.prepare_data()
@@ -296,6 +297,16 @@ class Mixin(object):
         self.time_series.trim(key, 20)
 
         self.assertEqual(self.time_series.length(key), 0)
+
+    def test_trim_with_zero(self):
+        """
+        :return:
+        """
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+        self.time_series.trim(key, 0)
+        results = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, results)
 
     def test_get_slice_with_key(self):
 

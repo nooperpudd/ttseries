@@ -18,9 +18,9 @@ class RedisSampleTimeSeries(RedisTSBase):
         data = self._serializer.dumps(data)
 
         with self._lock:
-            if self.length(name) >= self.max_length:
-                self.client.zremrangebyrank(name, min=0, max=0)
             if not self.exist_timestamp(name, timestamp):
+                if self.length(name) == self.max_length:
+                    self.client.zremrangebyrank(name, min=0, max=0)
                 return self.client.zadd(name, timestamp, data)
 
     def add_many(self, name, timestamp_pairs, chunk_size=2000):
@@ -31,6 +31,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param chunk_size:
         :return:
         """
+
         timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunk_size):
@@ -112,14 +113,15 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param length:
         :return:
         """
+        length = int(length)
         current_length = self.length(name)
+
         with self._lock:
-            if current_length > length:
+            if current_length > length > 0:
                 begin = 0  # start with 0 as the first set item
                 end = length - 1
                 self.client.zremrangebyrank(name, min=begin, max=end)
-
-            else:
+            elif length >= current_length:
                 self.delete(name)
 
     def get_slice(self, name, start_timestamp=None,
