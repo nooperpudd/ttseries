@@ -59,7 +59,6 @@ from ttseries.exceptions import SerializerError, RedisTimeSeriesException
 class RedisTSBase(object):
     """
     """
-    incr_format = "{key}:ID"  # as the auto increase id
 
     def __init__(self, redis_client: redis.StrictRedis, max_length=100000, transaction=True,
                  serializer_cls=serializers.MsgPackSerializer,
@@ -176,28 +175,27 @@ class RedisTSBase(object):
         """
         array_length = len(array_data)
 
-        if array_length + self.length(name) >= self.max_length:
-            trim_length = array_length + self.length(name) - self.max_length
-
-            self.trim(name, trim_length)
-        if array_length > self.max_length:
-            array_data = array_data[array_length - self.max_length:]
-
         if isinstance(array_data, list):
             # todo maybe other way to optimize this filter code
-            sorted_data = sorted(array_data, key=itemgetter(0))
-            end_timestamp = sorted_data[-1][0]  # max
+            array_data = sorted(array_data, key=itemgetter(0))
+            end_timestamp = array_data[-1][0]  # max
 
-            start_timestamp = sorted_data[0][0]  # min
+            start_timestamp = array_data[0][0]  # min
 
         elif isinstance(array_data, np.ndarray):
             start_timestamp = array_data["timestamp"].min()
             end_timestamp = array_data["timestamp"].max()
         else:
             raise RedisTimeSeriesException("nonsupport array data type")
+        
+        if array_length + self.length(name) >= self.max_length:
+            trim_length = array_length + self.length(name) - self.max_length
+            self.trim(name, trim_length)
+
+        if array_length > self.max_length:
+            array_data = array_data[array_length - self.max_length:]
 
         if self.count(name, start_timestamp, end_timestamp) > 0:
-
             raise RedisTimeSeriesException("exist timestamp in redis")
         else:
             return array_data

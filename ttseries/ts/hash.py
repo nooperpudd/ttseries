@@ -15,6 +15,7 @@ class RedisHashTimeSeries(RedisTSBase):
     hash can store up to 2**32 - 1 field-value pairs
     """
     hash_format = "{key}:HASH"  # as the hash set id
+    incr_format = "{key}:ID"  # as the auto increase id
 
     # todo support redis cluster
     # todo support parllizem and mulit threading
