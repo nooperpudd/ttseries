@@ -249,7 +249,7 @@ class RedisHashTimeSeries(RedisTSBase):
         for chunks in chunks_data:
             start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
             end_id = self.client.incrby(incr_key, amount=len(chunks))  # incr the add length
-            ids_range = range(start_id, end_id + 1)
+            ids_range = range(int(start_id), int(end_id) + 1)
             dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
 
             mix_data = itertools.zip_longest(dumps_results, ids_range)

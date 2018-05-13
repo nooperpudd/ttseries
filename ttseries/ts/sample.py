@@ -23,18 +23,18 @@ class RedisSampleTimeSeries(RedisTSBase):
                     self.client.zremrangebyrank(name, min=0, max=0)
                 return self.client.zadd(name, timestamp, data)
 
-    def add_many(self, name, timestamp_pairs, chunk_size=2000):
+    def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
 
         :param name:
         :param timestamp_pairs:
-        :param chunk_size:
+        :param chunks_size:
         :return:
         """
 
         timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
 
-        for item in ttseries.utils.chunks(timestamp_pairs, chunk_size):
+        for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
             filter_data = map(lambda x: (x[0], self._serializer.dumps(x[1])), item)
             filter_data = itertools.chain.from_iterable(filter_data)
 
