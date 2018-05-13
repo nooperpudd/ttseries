@@ -1,7 +1,6 @@
 # encoding:utf-8
 
 import itertools
-from operator import itemgetter
 
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
@@ -16,24 +15,15 @@ class RedisHashTimeSeries(RedisTSBase):
     hash can store up to 2**32 - 1 field-value pairs
     """
     hash_format = "{key}:HASH"  # as the hash set id
+    incr_format = "{key}:ID"  # as the auto increase id
 
     # todo support redis cluster
-
     # todo support parllizem and mulit threading
     # todo support numpy, best for memory
     #
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo implement auto move windows moving
     # todo scan command and
-
-    # def count(self, name: str):
-    #     """
-    #     Time complexity: O(1)
-    #     :param name:
-    #     :return:
-    #     """
-    #     hash_key = self.hash_format.format(key=name)
-    #     return self.client.hlen(hash_key)
 
     def get(self, name, timestamp):
         """
@@ -180,10 +170,11 @@ class RedisHashTimeSeries(RedisTSBase):
         :param length:
         :return:
         """
+        length = int(length)
         current_length = self.length(name)
         hash_key = self.hash_format.format(key=name)
 
-        if current_length > length:
+        if current_length > length > 0:
             begin = 0  # start with 0 as the first set item
             end = length - 1
 
@@ -198,8 +189,8 @@ class RedisHashTimeSeries(RedisTSBase):
             if result_data:
                 watch_keys = (name, hash_key)
                 self.transaction_pipe(pipe_func, watch_keys)
+        elif length >= current_length:
 
-        else:
             self.delete(name)
 
     def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
@@ -212,9 +203,6 @@ class RedisHashTimeSeries(RedisTSBase):
         :param name:
         :param start_timestamp:
         :param end_timestamp:
-        :param start_type:
-        :param end_type:
-        :param start_index:
         :param limit:
         :param asc:
         :return:
@@ -245,60 +233,44 @@ class RedisHashTimeSeries(RedisTSBase):
             iter_dumps = map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
 
-    def add_many(self, name, timestamp_pairs, chunks_size=2000, *args, **kwargs):
+    def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
         :param name:
         :param timestamp_pairs: [("timestamp",data)]
         :param chunks_size:
-        :param args:
-        :param kwargs:
         :return:
         """
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
-        # remove exist data
+        sorted_timestamps = self._add_many_validate(name, timestamp_pairs)
 
-        # todo maybe other way to optimize this filter code
-        sorted_timestamps = sorted(timestamp_pairs, key=itemgetter(0))
+        chunks_data = ttseries.utils.chunks(sorted_timestamps, chunks_size)
+        for chunks in chunks_data:
+            start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
+            end_id = self.client.incrby(incr_key, amount=len(chunks))  # incr the add length
+            ids_range = range(start_id, end_id + 1)
+            dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
 
-        max_timestamp = sorted_timestamps[-1][0]  # max
-        min_timestamp = sorted_timestamps[0][0]  # min
+            mix_data = itertools.zip_longest(dumps_results, ids_range)
 
-        filter_data = self.get_slice(name, start_timestamp=min_timestamp,
-                                     end_timestamp=max_timestamp)
-        if filter_data:
-            timestamp_set = set(map(lambda x: x[0], filter_data))
-            filter_results = itertools.filterfalse(lambda x: x[0] in timestamp_set, sorted_timestamps)
-        else:
-            filter_results = sorted_timestamps
-        chunks_data = ttseries.utils.chunks(filter_results, chunks_size)
+            mix_data = list(mix_data)  # todo
+            # [(("timestamp",data),id),...]
+            timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
 
-        with self._pipe_acquire() as pipe:
-            for chunks in chunks_data:
-                start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
-                end_id = self.client.incrby(incr_key, amount=len(chunks))  # incr the add length
+            ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
 
-                start_id = int(start_id)
-                end_id = int(end_id)
+            timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
+            ids_values = {k: v for k, v in ids_pairs}
 
-                ids_range = range(start_id, end_id)
+            def pipe_func(_pipe):
+                _pipe.zadd(name, *tuple(timestamp_ids))
+                _pipe.hmset(hash_key, ids_values)
 
-                dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
+            self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))
 
-                mix_data = itertools.zip_longest(dumps_results, ids_range)  # [(("timestamp",data),id),...]
-                mix_data = list(mix_data)  # need converted as list
-
-                timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
-                ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
-
-                timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
-                ids_values = {k: v for k, v in ids_pairs}
-
-                pipe.multi()
-                pipe.zadd(name, *timestamp_ids)
-                pipe.hmset(hash_key, ids_values)
-                pipe.execute()
+    def add_many_with_numpy(self, name, array, chunk_size=2000):
+        pass
 
     def iter(self):
         pass

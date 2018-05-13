@@ -5,6 +5,7 @@ import unittest
 import redis
 
 from ttseries import RedisSampleTimeSeries
+from ttseries.exceptions import RedisTimeSeriesException
 from .mixin import Mixin
 
 
@@ -43,8 +44,4 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
             result = self.time_series.get_slice(key)
             self.assertListEqual(data_list, result)
 
-    def test_add_many(self):
-        pass
 
-    def test_add_many_max_length(self):
-        pass
