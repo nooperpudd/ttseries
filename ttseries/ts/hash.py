@@ -246,32 +246,28 @@ class RedisHashTimeSeries(RedisTSBase):
         sorted_timestamps = self._add_many_validate(name, timestamp_pairs)
 
         chunks_data = ttseries.utils.chunks(sorted_timestamps, chunks_size)
+        for chunks in chunks_data:
+            start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
+            end_id = self.client.incrby(incr_key, amount=len(chunks))  # incr the add length
+            ids_range = range(start_id, end_id + 1)
+            dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
 
-        with self._pipe_acquire() as pipe:
-            for chunks in chunks_data:
-                start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
-                end_id = self.client.incrby(incr_key, amount=len(chunks))  # incr the add length
+            mix_data = itertools.zip_longest(dumps_results, ids_range)
 
-                start_id = int(start_id)
-                end_id = int(end_id)
+            mix_data = list(mix_data)  # todo
+            # [(("timestamp",data),id),...]
+            timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
 
-                ids_range = range(start_id, end_id)
+            ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
 
-                dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
+            timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
+            ids_values = {k: v for k, v in ids_pairs}
 
-                mix_data = itertools.zip_longest(dumps_results, ids_range)  # [(("timestamp",data),id),...]
-                mix_data = list(mix_data)  # need converted as list
+            def pipe_func(_pipe):
+                _pipe.zadd(name, *tuple(timestamp_ids))
+                _pipe.hmset(hash_key, ids_values)
 
-                timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
-                ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
-
-                timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
-                ids_values = {k: v for k, v in ids_pairs}
-
-                pipe.multi()
-                pipe.zadd(name, *timestamp_ids)
-                pipe.hmset(hash_key, ids_values)
-                pipe.execute()
+            self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))
 
     def add_many_with_numpy(self, name, array, chunk_size=2000):
         pass

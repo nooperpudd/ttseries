@@ -1,3 +1,4 @@
+from ttseries.exceptions import RedisTimeSeriesException
 class Mixin(object):
 
     def generate_data(self, length):
@@ -434,3 +435,61 @@ class Mixin(object):
         data_list = data_list[3:7]
         filter_data = list(reversed(data_list))
         self.assertListEqual(result_data, filter_data)
+
+    def test_add_many(self):
+
+        data_list = self.generate_data(10)
+        key = "AAPL:SECOND"
+
+        self.time_series.add_many(key, data_list)
+        results = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, results)
+
+    def test_add_many_max_length(self):
+
+        data_list = self.generate_data(20)
+        key = "AAPL:SECOND"
+
+        self.time_series.add_many(key, data_list)
+        results = self.time_series.get_slice(key)
+
+        filter_data = data_list[10:]
+        removed_data = data_list[:10]
+        self.assertListEqual(results, filter_data)
+        start_timestamp = removed_data[0][0]
+        end_timestamp = removed_data[-1][0]
+        self.assertEqual(self.time_series.count(key, start_timestamp,
+                                                end_timestamp), 0)
+
+    def test_add_many_max_length_complete(self):
+
+        data_list = self.generate_data(40)
+        key = "AAPL:SECOND"
+
+        data_list1 = data_list[:20]
+        data_list2 = data_list[20:40]
+
+        # add data list 1
+        self.time_series.add_many(key, data_list1)
+        filter_data1 = data_list1[10:]
+
+        results1 = self.time_series.get_slice(key)
+        self.assertListEqual(results1, filter_data1)
+
+        self.time_series.add_many(key, data_list2)
+
+        filter_data2 = data_list2[10:]
+        results2 = self.time_series.get_slice(key)
+        self.assertListEqual(results2, filter_data2)
+
+    def test_add_max_length_with_assertError(self):
+
+        data_list = self.generate_data(5)
+        key = "AAPL:SECOND:50"
+
+        with self.assertRaises(RedisTimeSeriesException):
+            self.time_series.add_many(key, data_list)
+            self.assertEqual(self.time_series.count(key), 5)
+            results = self.time_series.get_slice(key)
+            self.assertListEqual(results, data_list)
+            self.time_series.add_many(key, data_list)
