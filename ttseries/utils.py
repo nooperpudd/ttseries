@@ -1,6 +1,7 @@
 # encoding:utf-8
 import itertools
-from multiprocessing import Pool
+import multiprocessing
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
@@ -11,14 +12,11 @@ def p_map(func, iterable, chunk_size=1000):
     :param func:
     :param iterable:
     :param chunk_size:
-    :return:
+    :return: list
     """
-    length = sum(1 for _ in iterable)
-    pool_size = int(length / chunk_size) or 1
+    pool = ThreadPool(multiprocessing.cpu_count())
+    return pool.map(func, iterable, chunk_size)
 
-    with Pool(pool_size) as p:
-        g= p.map_async(func, iterable, chunk_size)
-        return list(g)
 
 def chunks_numpy(array: np.array, chunk_size=2000):
     """

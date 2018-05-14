@@ -6,6 +6,7 @@ import numpy as np
 
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
+from ttseries.utils import p_map
 
 
 class RedisSampleTimeSeries(RedisTSBase):
@@ -35,7 +36,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
-            filter_data = map(lambda x: (x[0], self._serializer.dumps(x[1])), item)
+            filter_data = p_map(lambda x: (x[0], self._serializer.dumps(x[1])), item)
             filter_data = itertools.chain.from_iterable(filter_data)
 
             def pipe_func(_pipe):
@@ -154,5 +155,4 @@ class RedisSampleTimeSeries(RedisTSBase):
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
-            return list(map(lambda x: (x[1], self._serializer.loads(x[0])),
-                            results))
+            return p_map(lambda x: (x[1], self._serializer.loads(x[0])), results)
