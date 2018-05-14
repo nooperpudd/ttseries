@@ -4,6 +4,7 @@ import itertools
 
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
+from ttseries.utils import p_map
 
 
 class RedisHashTimeSeries(RedisTSBase):
@@ -157,8 +158,8 @@ class RedisHashTimeSeries(RedisTSBase):
                     self.delete(name, start_timestamp, end_timestamp)
         else:
             for chunk_keys in chunks_data:
-                incr_chunks = map(lambda x: self.incr_format.format(key=x), chunk_keys)
-                hash_chunks = map(lambda x: self.hash_format.format(key=x), chunk_keys)
+                incr_chunks = p_map(lambda x: self.incr_format.format(key=x), chunk_keys)
+                hash_chunks = p_map(lambda x: self.hash_format.format(key=x), chunk_keys)
                 del_items = itertools.chain(chunk_keys, incr_chunks, hash_chunks)
                 self.client.delete(*del_items)
 
@@ -230,7 +231,7 @@ class RedisHashTimeSeries(RedisTSBase):
             # sorted as the order data
             ids, timestamps = list(itertools.zip_longest(*results_ids))
             values = self.client.hmget(hash_key, *ids)
-            iter_dumps = map(self._serializer.loads, values)
+            iter_dumps = p_map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000):
@@ -256,15 +257,15 @@ class RedisHashTimeSeries(RedisTSBase):
 
             ids_range = range(int(start_id), int(end_id))
 
-            dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
+            dumps_results = p_map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
 
             mix_data = itertools.zip_longest(dumps_results, ids_range)
             mix_data = list(mix_data)  # todo
 
             # [(("timestamp",data),id),...]
-            timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
+            timestamp_ids = p_map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
 
-            ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
+            ids_pairs = p_map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
 
             timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
             ids_values = {k: v for k, v in ids_pairs}

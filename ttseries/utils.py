@@ -1,7 +1,21 @@
 # encoding:utf-8
 import itertools
+import multiprocessing
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
+
+
+def p_map(func, iterable, chunk_size=1000):
+    """
+    optimize map func
+    :param func:
+    :param iterable:
+    :param chunk_size:
+    :return: list
+    """
+    pool = ThreadPool(multiprocessing.cpu_count())
+    return pool.map(func, iterable, chunk_size)
 
 
 def chunks_numpy(array: np.array, chunk_size=2000):
