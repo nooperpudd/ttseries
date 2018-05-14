@@ -3,57 +3,11 @@ import contextlib
 import functools
 import threading
 from operator import itemgetter
-
 import numpy as np
 import redis
 
 from ttseries import serializers
 from ttseries.exceptions import SerializerError, RedisTimeSeriesException
-
-
-# def _transaction(watch_arg=None, use_pipe=True, ):
-#     """
-#     wrapper class
-#     :return:
-#     """
-#
-#     def wrapper(func):
-#         """
-#         :return:
-#         """
-#
-#         @functools.wraps(func)
-#         def inner(self, *args, **kwargs):
-#             """
-#             :param self: class instance
-#             :param args:
-#             :param kwargs:
-#             :return:
-#             """
-#             trans = getattr(self, "transaction")
-#             redis_client = getattr(self, "client", None)
-#
-#             call_args = inspect.getcallargs(func, **kwargs)
-#             watch_value = call_args.get(watch_arg)
-#             if redis_client and trans:
-#
-#                 result = None
-#                 try:
-#                     redis_client.watch(watch_value)
-#                     result = func(self, *args, **kwargs)
-#                 except redis.WatchError:
-#                     continue
-#                 else:
-#                     redis_client.unwatch()
-#                     return result
-#
-#
-#             else:
-#                 return func(self, *args, **kwargs)
-#
-#         return inner
-#
-#     return wrapper
 
 
 class RedisTSBase(object):
@@ -152,7 +106,7 @@ class RedisTSBase(object):
         :param kwargs:
         :return:
         """
-        with self._pipe_acquire() as pipe:
+        with self._lock, self._pipe_acquire() as pipe:
             while True:
                 try:
                     if watch_keys:
