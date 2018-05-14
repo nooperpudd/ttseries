@@ -493,3 +493,24 @@ class Mixin(object):
             results = self.time_series.get_slice(key)
             self.assertListEqual(results, data_list)
             self.time_series.add_many(key, data_list)
+
+    def test_add_many_data_twice(self):
+
+        key = "APPL:HOUR:1"
+        data_list = self.generate_data(10)
+        data_list1 = data_list[:5]
+        data_list2 = data_list[5:]
+        self.time_series.add_many(key, data_list1)
+        self.time_series.add_many(key, data_list2)
+
+        result_data = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, result_data)
+
+    def test_add_many_with_chunks(self):
+        key = "APPL:MINS:101"
+        data_list = self.generate_data(10)
+
+        self.time_series.add_many(key, data_list, chunks_size=5)
+
+        result_data = self.time_series.get_slice(key)
+        self.assertListEqual(data_list, result_data)
