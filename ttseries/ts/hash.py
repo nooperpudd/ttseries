@@ -247,14 +247,20 @@ class RedisHashTimeSeries(RedisTSBase):
 
         chunks_data = ttseries.utils.chunks(sorted_timestamps, chunks_size)
         for chunks in chunks_data:
-            start_id = self.client.get(incr_key) or 1  # if key not exist id equal 0
+
+            if not self.client.exists(incr_key):
+                self.client.incr(incr_key)
+
+            start_id = self.client.get(incr_key)  # if key not exist id equal 0
             end_id = self.client.incrby(incr_key, amount=len(chunks))  # incr the add length
-            ids_range = range(int(start_id), int(end_id) + 1)
+
+            ids_range = range(int(start_id), int(end_id))
+
             dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
 
             mix_data = itertools.zip_longest(dumps_results, ids_range)
-
             mix_data = list(mix_data)  # todo
+
             # [(("timestamp",data),id),...]
             timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
 
