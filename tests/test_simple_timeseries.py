@@ -5,7 +5,6 @@ import unittest
 import redis
 
 from ttseries import RedisSampleTimeSeries
-from ttseries.exceptions import RedisTimeSeriesException
 from .mixin import Mixin
 
 
