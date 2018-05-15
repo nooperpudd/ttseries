@@ -75,6 +75,8 @@ class RedisHashTimeSeries(RedisTSBase):
         :param data:
         :return: bool
         """
+        self.validate_key(name)
+
         dumps_data = self._serializer.dumps(data)
 
         incr_key = self.incr_format.format(key=name)  # APPL:SECOND:ID
@@ -240,6 +242,7 @@ class RedisHashTimeSeries(RedisTSBase):
         :param chunks_size:
         :return:
         """
+        self.validate_key(name)
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
@@ -276,9 +279,17 @@ class RedisHashTimeSeries(RedisTSBase):
             self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))
 
     def add_many_with_numpy(self, name, array, chunk_size=2000):
-        pass
+        self.validate_key(name)
+
+    def iter_keys(self,count=None):
+        """
+        :return:
+        """
+        for item in self.client.scan_iter(match="*:ID",count=count):
+            yield item.replace(":ID", "")
 
     def iter(self):
+
         pass
         # 	HSCAN key cursor [MATCH pattern] [COUNT count]
         # 迭代哈希表

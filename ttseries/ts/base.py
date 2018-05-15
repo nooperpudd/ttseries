@@ -123,6 +123,14 @@ class RedisTSBase(object):
                 finally:
                     pipe.reset()
 
+    def validate_key(self, name):
+        """
+        :param name:
+        :return:
+        """
+        if [":HASH", ":ID"] in name:
+            raise RedisTimeSeriesException("Key can't contains `:HASH`, `:ID`")
+
     def _add_many_validate(self, name, array_data):
         """
         :return:

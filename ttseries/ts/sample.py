@@ -31,6 +31,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param chunks_size:
         :return:
         """
+        self.validate_key(name)
 
         timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
 
@@ -51,6 +52,8 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param timestamp_name:
         :return:
         """
+        self.validate_key(name)
+
         self._add_many_validate(name, array)
 
         # array[:, 1::]
@@ -103,9 +106,6 @@ class RedisSampleTimeSeries(RedisTSBase):
             for chunk_keys in chunks_data:
                 self.client.delete(*chunk_keys)
 
-    def iter(self, name):
-        pass
-
     def trim(self, name, length):
         """
 
@@ -147,6 +147,8 @@ class RedisSampleTimeSeries(RedisTSBase):
         if limit is None:
             limit = -1
 
+        self.client.zscan_iter()
+
         results = zrange_func(name, min=start_timestamp,
                               max=end_timestamp,
                               withscores=True, start=0, num=limit)
@@ -156,3 +158,18 @@ class RedisSampleTimeSeries(RedisTSBase):
 
             return list(map(lambda x: (x[1], self._serializer.loads(x[0])),
                             results))
+
+    def iter_keys(self, count=None):
+        """
+        :return:
+        """
+        for item in self.client.scan_iter(count=count):
+            yield item
+
+    def iter(self,name, count=None):
+        """
+        :param name:
+        :return:
+        """
+        for item in self.client.zscan_iter(name,count=count):
+            yield item
