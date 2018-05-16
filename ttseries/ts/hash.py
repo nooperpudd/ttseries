@@ -305,7 +305,7 @@ class RedisHashTimeSeries(RedisTSBase):
         for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
                                                                  self.client.hscan_iter(name=hash_key)):
 
-            if timestamp_pairs[0] == hash_pairs[0]:
+            if int(timestamp_pairs[0]) == int(hash_pairs[0]):
                 yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
             else:
                 raise RedisTimeSeriesException("Redis time-series value-pairs error")
