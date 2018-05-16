@@ -309,4 +309,5 @@ class RedisHashTimeSeries(RedisTSBase):
             if int(timestamp_pairs[0]) == int(hash_pairs[0]):
                 yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
             else:
-                raise RedisTimeSeriesException("Redis time-series value-pairs error")
+                pass
+                # raise RedisTimeSeriesException("Redis time-series value-pairs error")
