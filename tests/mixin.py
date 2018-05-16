@@ -529,3 +529,11 @@ class Mixin(object):
         keys = self.prepare_many_data(data_list)
         for item in self.time_series.iter_keys():
             self.assertTrue(item in keys)
+
+    def test_iter(self):
+
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+
+        for item in self.time_series.iter(key):
+            self.assertTrue(item in data_list)
