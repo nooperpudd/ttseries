@@ -3,6 +3,7 @@
 import itertools
 
 import ttseries.utils
+from ttseries.exceptions import RedisTimeSeriesException
 from ttseries.ts.base import RedisTSBase
 
 
@@ -259,15 +260,18 @@ class RedisHashTimeSeries(RedisTSBase):
 
             ids_range = range(int(start_id), int(end_id))
 
-            dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
+            dumps_results = itertools.starmap(lambda timestamp, data:
+                                              (timestamp, self._serializer.dumps(data)), chunks)
 
             mix_data = itertools.zip_longest(dumps_results, ids_range)
             mix_data = list(mix_data)  # todo
 
             # [(("timestamp",data),id),...]
-            timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
+            timestamp_ids = itertools.starmap(lambda timestamp_values, _id:
+                                              (timestamp_values[0], _id), mix_data)  # [("timestamp",id),...]
 
-            ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
+            ids_pairs = itertools.starmap(lambda timestamp_values, _id:
+                                          (_id, timestamp_values[1]), mix_data)  # [("id",data),...]
 
             timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
             ids_values = {k: v for k, v in ids_pairs}
@@ -286,7 +290,7 @@ class RedisHashTimeSeries(RedisTSBase):
         :return:
         """
         for item in self.client.scan_iter(match="*:ID", count=count):
-            yield item.replace(":ID", "")
+            yield item.decode("utf-8").replace(":ID", "")
 
     def iter(self, name):
         """
@@ -296,7 +300,12 @@ class RedisHashTimeSeries(RedisTSBase):
         :param name:
         :return:
         """
-        for item1, item2 in zip(self.client.zscan_iter(name=name),
-                                self.client.hscan_iter(name=name)):
-            print(item1, item2)
+        hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
 
+        for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
+                                                                 self.client.hscan_iter(name=hash_key)):
+
+            if timestamp_pairs[0] == hash_pairs[0]:
+                yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
+            else:
+                raise RedisTimeSeriesException("Redis time-series value-pairs error")

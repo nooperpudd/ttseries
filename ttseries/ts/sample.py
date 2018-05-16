@@ -36,7 +36,8 @@ class RedisSampleTimeSeries(RedisTSBase):
         timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
-            filter_data = map(lambda x: (x[0], self._serializer.dumps(x[1])), item)
+            filter_data = itertools.starmap(lambda timestamp, data:
+                                            (timestamp, self._serializer.dumps(data)), item)
             filter_data = itertools.chain.from_iterable(filter_data)
 
             def pipe_func(_pipe):
@@ -154,15 +155,16 @@ class RedisSampleTimeSeries(RedisTSBase):
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
-            return list(map(lambda x: (x[1], self._serializer.loads(x[0])),
-                            results))
+            return list(itertools.starmap(lambda data, timestamp:
+                                          (timestamp, self._serializer.loads(data)),
+                                          results))
 
     def iter_keys(self, count=None):
         """
         :return:
         """
         for item in self.client.scan_iter(count=count):
-            yield item
+            yield item.decode("utf-8")
 
     def iter(self, name, count=None):
         """
