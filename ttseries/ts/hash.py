@@ -294,18 +294,19 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def iter(self, name):
         """
+
          # 	HSCAN key cursor [MATCH pattern] [COUNT count]
-        # 迭代哈希表
         # ZSCAN key cursor [MATCH pattern] [COUNT count]
         :param name:
         :return:
         """
-        hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
-
-        for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
-                                                                 self.client.hscan_iter(name=hash_key)):
-
-            if int(timestamp_pairs[0]) == int(hash_pairs[0]):
-                yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
-            else:
-                raise RedisTimeSeriesException("Redis time-series value-pairs error")
+        # todo bugs need to fix
+        # hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
+        #
+        # for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
+        #                                                          self.client.hscan_iter(name=hash_key)):
+        #
+        #     if int(timestamp_pairs[0]) == int(hash_pairs[0]):
+        #         yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
+        #     else:
+        #         raise RedisTimeSeriesException("Redis time-series value-pairs error")
