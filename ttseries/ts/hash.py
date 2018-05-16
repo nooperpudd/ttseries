@@ -281,16 +281,22 @@ class RedisHashTimeSeries(RedisTSBase):
     def add_many_with_numpy(self, name, array, chunk_size=2000):
         self.validate_key(name)
 
-    def iter_keys(self,count=None):
+    def iter_keys(self, count=None):
         """
         :return:
         """
-        for item in self.client.scan_iter(match="*:ID",count=count):
+        for item in self.client.scan_iter(match="*:ID", count=count):
             yield item.replace(":ID", "")
 
-    def iter(self):
-
-        pass
-        # 	HSCAN key cursor [MATCH pattern] [COUNT count]
+    def iter(self, name):
+        """
+         # 	HSCAN key cursor [MATCH pattern] [COUNT count]
         # 迭代哈希表
         # ZSCAN key cursor [MATCH pattern] [COUNT count]
+        :param name:
+        :return:
+        """
+        for item1, item2 in zip(self.client.zscan_iter(name=name),
+                                self.client.hscan_iter(name=name)):
+            print(item1, item2)
+

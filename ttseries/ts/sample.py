@@ -166,10 +166,11 @@ class RedisSampleTimeSeries(RedisTSBase):
         for item in self.client.scan_iter(count=count):
             yield item
 
-    def iter(self,name, count=None):
+    def iter(self, name, count=None):
         """
         :param name:
+        :param count:
         :return:
         """
-        for item in self.client.zscan_iter(name,count=count):
-            yield item
+        for item in self.client.zscan_iter(name, count=count):
+            yield (item[1], self._serializer.loads(item[0]))
