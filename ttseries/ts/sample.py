@@ -147,8 +147,6 @@ class RedisSampleTimeSeries(RedisTSBase):
         if limit is None:
             limit = -1
 
-        self.client.zscan_iter()
-
         results = zrange_func(name, min=start_timestamp,
                               max=end_timestamp,
                               withscores=True, start=0, num=limit)
