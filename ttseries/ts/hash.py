@@ -3,6 +3,7 @@
 import itertools
 
 import ttseries.utils
+from ttseries.exceptions import RedisTimeSeriesException
 from ttseries.ts.base import RedisTSBase
 
 
@@ -75,6 +76,8 @@ class RedisHashTimeSeries(RedisTSBase):
         :param data:
         :return: bool
         """
+        self.validate_key(name)
+
         dumps_data = self._serializer.dumps(data)
 
         incr_key = self.incr_format.format(key=name)  # APPL:SECOND:ID
@@ -240,6 +243,7 @@ class RedisHashTimeSeries(RedisTSBase):
         :param chunks_size:
         :return:
         """
+        self.validate_key(name)
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
@@ -256,15 +260,18 @@ class RedisHashTimeSeries(RedisTSBase):
 
             ids_range = range(int(start_id), int(end_id))
 
-            dumps_results = map(lambda x: (x[0], self._serializer.dumps(x[1])), chunks)
+            dumps_results = itertools.starmap(lambda timestamp, data:
+                                              (timestamp, self._serializer.dumps(data)), chunks)
 
             mix_data = itertools.zip_longest(dumps_results, ids_range)
             mix_data = list(mix_data)  # todo
 
             # [(("timestamp",data),id),...]
-            timestamp_ids = map(lambda seq: (seq[0][0], seq[1]), mix_data)  # [("timestamp",id),...]
+            timestamp_ids = itertools.starmap(lambda timestamp_values, _id:
+                                              (timestamp_values[0], _id), mix_data)  # [("timestamp",id),...]
 
-            ids_pairs = map(lambda seq: (seq[1], seq[0][1]), mix_data)  # [("id",data),...]
+            ids_pairs = itertools.starmap(lambda timestamp_values, _id:
+                                          (_id, timestamp_values[1]), mix_data)  # [("id",data),...]
 
             timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
             ids_values = {k: v for k, v in ids_pairs}
@@ -276,10 +283,29 @@ class RedisHashTimeSeries(RedisTSBase):
             self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))
 
     def add_many_with_numpy(self, name, array, chunk_size=2000):
-        pass
+        self.validate_key(name)
 
-    def iter(self):
-        pass
-        # 	HSCAN key cursor [MATCH pattern] [COUNT count]
+    def iter_keys(self, count=None):
+        """
+        :return:
+        """
+        for item in self.client.scan_iter(match="*:ID", count=count):
+            yield item.decode("utf-8").replace(":ID", "")
+
+    def iter(self, name):
+        """
+         # 	HSCAN key cursor [MATCH pattern] [COUNT count]
         # 迭代哈希表
         # ZSCAN key cursor [MATCH pattern] [COUNT count]
+        :param name:
+        :return:
+        """
+        hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
+
+        for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
+                                                                 self.client.hscan_iter(name=hash_key)):
+
+            if int(timestamp_pairs[0]) == int(hash_pairs[0]):
+                yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
+            else:
+                raise RedisTimeSeriesException("Redis time-series value-pairs error")

@@ -3,6 +3,7 @@ import contextlib
 import functools
 import threading
 from operator import itemgetter
+
 import numpy as np
 import redis
 
@@ -122,6 +123,14 @@ class RedisTSBase(object):
                     continue
                 finally:
                     pipe.reset()
+
+    def validate_key(self, name):
+        """
+        :param name:
+        :return:
+        """
+        if ":HASH" in name or ":ID" in name:
+            raise RedisTimeSeriesException("Key can't contains `:HASH`, `:ID`")
 
     def _add_many_validate(self, name, array_data):
         """

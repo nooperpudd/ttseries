@@ -31,11 +31,13 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param chunks_size:
         :return:
         """
+        self.validate_key(name)
 
         timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
-            filter_data = map(lambda x: (x[0], self._serializer.dumps(x[1])), item)
+            filter_data = itertools.starmap(lambda timestamp, data:
+                                            (timestamp, self._serializer.dumps(data)), item)
             filter_data = itertools.chain.from_iterable(filter_data)
 
             def pipe_func(_pipe):
@@ -51,6 +53,8 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param timestamp_name:
         :return:
         """
+        self.validate_key(name)
+
         self._add_many_validate(name, array)
 
         # array[:, 1::]
@@ -103,9 +107,6 @@ class RedisSampleTimeSeries(RedisTSBase):
             for chunk_keys in chunks_data:
                 self.client.delete(*chunk_keys)
 
-    def iter(self, name):
-        pass
-
     def trim(self, name, length):
         """
 
@@ -154,5 +155,22 @@ class RedisSampleTimeSeries(RedisTSBase):
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
-            return list(map(lambda x: (x[1], self._serializer.loads(x[0])),
-                            results))
+            return list(itertools.starmap(lambda data, timestamp:
+                                          (timestamp, self._serializer.loads(data)),
+                                          results))
+
+    def iter_keys(self, count=None):
+        """
+        :return:
+        """
+        for item in self.client.scan_iter(count=count):
+            yield item.decode("utf-8")
+
+    def iter(self, name, count=None):
+        """
+        :param name:
+        :param count:
+        :return:
+        """
+        for item in self.client.zscan_iter(name, count=count):
+            yield (item[1], self._serializer.loads(item[0]))
