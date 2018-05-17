@@ -279,9 +279,6 @@ class RedisHashTimeSeries(RedisTSBase):
 
             self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))
 
-    def add_many_with_numpy(self, name, array, chunk_size=2000):
-        self.validate_key(name)
-
     def iter_keys(self, count=None):
         """
         :return:
