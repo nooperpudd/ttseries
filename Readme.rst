@@ -34,10 +34,10 @@ Contact
 
 
 
-.. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg
+.. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master
     :target: https://travis-ci.org/nooperpudd/ttseries
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/ntlhwaagr5dqh341?svg=true
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/ntlhwaagr5dqh341/branch/master?svg=true
     :target: https://ci.appveyor.com/project/nooperpudd/ttseries
 
 .. |codecov| image:: https://codecov.io/gh/nooperpudd/ttseries/branch/master/graph/badge.svg
