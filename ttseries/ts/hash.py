@@ -20,10 +20,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
     # todo support redis cluster
     # todo support parllizem and mulit threading
-    # todo support numpy, best for memory
-    # todo test many item data execute how much could support 10000? 100000? 10000000?
-    # todo implement auto move windows moving
-
+    
     def get(self, name, timestamp):
         """
         :param name:
