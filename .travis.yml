@@ -1,8 +1,7 @@
 language: python
 
 python:
-  - "3.4"
-  - "3.5.5"
+  #- "3.5.5"
   - "3.6.5"
 
 services:
@@ -22,6 +21,7 @@ install:
   - pip check
 
 script:
+  - redis-server -v
   - pytest -v -s
   - py.test -v --cov=ttseries --cov-report xml
 after_success:
