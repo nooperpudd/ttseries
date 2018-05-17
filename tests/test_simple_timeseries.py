@@ -42,11 +42,3 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
         for key in rest_keys:
             result = self.time_series.get_slice(key)
             self.assertListEqual(data_list, result)
-
-    def test_iter(self):
-
-        data_list = self.generate_data(10)
-        key = self.add_data_list(data_list)
-
-        for item in self.time_series.iter(key):
-            self.assertTrue(item in data_list)

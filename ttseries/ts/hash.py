@@ -21,10 +21,8 @@ class RedisHashTimeSeries(RedisTSBase):
     # todo support redis cluster
     # todo support parllizem and mulit threading
     # todo support numpy, best for memory
-    #
     # todo test many item data execute how much could support 10000? 100000? 10000000?
     # todo implement auto move windows moving
-    # todo scan command and
 
     def get(self, name, timestamp):
         """
@@ -264,8 +262,7 @@ class RedisHashTimeSeries(RedisTSBase):
                                               (timestamp, self._serializer.dumps(data)), chunks)
 
             mix_data = itertools.zip_longest(dumps_results, ids_range)
-            mix_data = list(mix_data)  # todo
-
+            mix_data = list(mix_data)
             # [(("timestamp",data),id),...]
             timestamp_ids = itertools.starmap(lambda timestamp_values, _id:
                                               (timestamp_values[0], _id), mix_data)  # [("timestamp",id),...]
@@ -294,19 +291,15 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def iter(self, name):
         """
-
-         # 	HSCAN key cursor [MATCH pattern] [COUNT count]
-        # ZSCAN key cursor [MATCH pattern] [COUNT count]
         :param name:
         :return:
         """
-        # todo bugs need to fix
-        # hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
-        #
-        # for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
-        #                                                          self.client.hscan_iter(name=hash_key)):
-        #
-        #     if int(timestamp_pairs[0]) == int(hash_pairs[0]):
-        #         yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
-        #     else:
-        #         raise RedisTimeSeriesException("Redis time-series value-pairs error")
+        hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
+
+        for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
+                                                                 self.client.hscan_iter(name=hash_key)):
+
+            if int(timestamp_pairs[0]) == int(hash_pairs[0]):
+                yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
+            else:
+                raise RedisTimeSeriesException("Redis time-series value-pairs error")
