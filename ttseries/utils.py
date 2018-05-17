@@ -6,7 +6,10 @@ import numpy as np
 
 def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
     """
-    :return:
+    split numpy array in to chunk data
+    :param array: numpy array
+    :param chunk_size: int, split data as the length of chunks
+    :return: numpy array
     """
     length = len(array)
     if length > chunk_size:
