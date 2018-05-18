@@ -9,26 +9,25 @@ from ttseries.ts.base import RedisTSBase
 
 class RedisHashTimeSeries(RedisTSBase):
     """
-    Redis to save time-series data
-    use redis sorted set as the time-series
-    sorted as the desc
+    Use redis sorted set and hashes to store time-series data,
+    instead of using redis sorted set, combine redis hashes with auto
+    increase value, so the time-series can keep the data consistency.
+    sorted set [(timestamp,1),(timestamp,2),...]
+    hashes [(1,data),(2,data)...]
+
     support max length 2**63-1
-    hash can store up to 2**32 - 1 field-value pairs
+    redis hashes can store up to 2**32 - 1 field-value pairs
+
     """
     hash_format = "{key}:HASH"  # as the hash set id
     incr_format = "{key}:ID"  # as the auto increase id
 
-    # todo support redis cluster
-    # todo support parllizem and mulit threading
-    # todo support numpy, best for memory
-    # todo test many item data execute how much could support 10000? 100000? 10000000?
-    # todo implement auto move windows moving
-
     def get(self, name, timestamp):
         """
-        :param name:
-        :param timestamp:
-        :return:
+        get one item by timestamp
+        :param name: redis key
+        :param timestamp: float, timestamp
+        :return: obj
         """
         hash_key = self.hash_format.format(key=name)
 
@@ -37,16 +36,14 @@ class RedisHashTimeSeries(RedisTSBase):
                                               max=timestamp)
         if result_id:
             data = self.client.hmget(hash_key, result_id)
-            # only one item
             return self._serializer.loads(data[0])
 
     def _auto_trim(self, name, key_id, hash_key):
         """
-        remove with max length in the redis keys
-        :param name:
+        auto trim the redis data  with max length in the redis keys
+        :param name: redis key
         :param key_id:
         :param hash_key:
-        :return:
         """
         # if current length reach the max length of the data
         # remove oldest key store in data
@@ -59,19 +56,16 @@ class RedisHashTimeSeries(RedisTSBase):
             self.client.zrem(name, remove_key)
             self.client.hdel(hash_key, remove_key)
 
-        results = self.transaction_pipe(pipe_func, watch_keys)
-        return results
+        self.transaction_pipe(pipe_func, watch_keys)
 
     def add(self, name: str, timestamp: float, data) -> bool:
         """
-        incr -> result
-        hmset key field value
-        zadd (sorted set) key score(timestamp) value
+        add one times-series data into redis
 
         ensure only one timestamp corresponding one value
         :param name: key name
         :param timestamp: timestamp: float
-        :param data:
+        :param data: object
         :return: bool
         """
         self.validate_key(name)
@@ -109,10 +103,13 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
         """
-        delete one key item or delete by timestamp order
-        :param name:
-        :param start_timestamp:
-        :param end_timestamp:
+        Removes all elements in the sorted set stored at key
+        between start timestamp and end timestamp (inclusive).
+        if parameter only contains `name`, will delete all data stored in redis key.
+
+        :param name: redis key
+        :param start_timestamp: timestamp
+        :param end_timestamp: timestamp
         :return: bool or delete num
         """
         incr_key = self.incr_format.format(key=name)  # APPL:SECOND:ID
@@ -144,11 +141,14 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def remove_many(self, names, start_timestamp=None, end_timestamp=None):
         """
-        remove many keys
-        :param names:
-        :param start_timestamp:
-        :param end_timestamp:
-        :return:
+        remove many keys with timestamp
+        ! if only parameter contains names, will directly delete redis key.
+        or with start timestamp and end timestamp will remove all elements
+        in the sorted set with keys, between with start timestamp and end timestamp
+
+        :param names: tuple, redis keys
+        :param start_timestamp: float, start timestamp
+        :param end_timestamp: float, end timestamp
         """
         chunks_data = ttseries.utils.chunks(names, 10000)
 
@@ -166,10 +166,9 @@ class RedisHashTimeSeries(RedisTSBase):
     def trim(self, name, length: int):
         """
         trim redis sorted set key as the number of length,
-        trim the data as the asc timestamp
-        :param name:
-        :param length:
-        :return:
+        trim the data with timestamp as the asc
+        :param name: redis key
+        :param length: int, length
         """
         length = int(length)
         current_length = self.length(name)
@@ -196,17 +195,14 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
         """
-        zrangebyscore or zrevrangebyscore
+        return a slice from redis sorted set with timestamp pairs
 
-        start_type = ["gt","gte"] (>, >=) asc or ["lt","lte"] (<,<=) desc
-                     for redis means '(1' ===> >1 '1' ===> 1
-
-        :param name:
-        :param start_timestamp:
-        :param end_timestamp:
-        :param limit:
-        :param asc:
-        :return:
+        :param name: redis key
+        :param start_timestamp: start timestamp
+        :param end_timestamp: end timestamp
+        :param limit: int, limit the length of the result data.
+        :param asc: bool, sorted as the timestamp values
+        :return: [(timestamp,data),...]
         """
         if asc:
             zrange_func = self.client.zrangebyscore
@@ -228,7 +224,6 @@ class RedisHashTimeSeries(RedisTSBase):
                                   withscores=True, start=0, num=limit)
 
         if results_ids:
-            # sorted as the order data
             ids, timestamps = list(itertools.zip_longest(*results_ids))
             values = self.client.hmget(hash_key, *ids)
             iter_dumps = map(self._serializer.loads, values)
@@ -236,10 +231,10 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
-        :param name:
-        :param timestamp_pairs: [("timestamp",data)]
-        :param chunks_size:
-        :return:
+        add large amount of data into redis sorted-set
+        :param name: redis key
+        :param timestamp_pairs: data pairs, [("timestamp",data)...]
+        :param chunks_size: split data into chunk, optimize for redis pipeline
         """
         self.validate_key(name)
         incr_key = self.incr_format.format(key=name)
@@ -281,15 +276,19 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def iter_keys(self, count=None):
         """
-        :return:
+        generator iterator all time-series keys
+        :return: iter,
         """
         for item in self.client.scan_iter(match="*:ID", count=count):
             yield item.decode("utf-8").replace(":ID", "")
 
     def iter(self, name):
         """
-        :param name:
-        :return:
+        iterator all the time-series data with redis key.
+        only works in python3.6,
+        https://stackoverflow.com/questions/39980323/are-dictionaries-ordered-in-python-3-6
+        :param name: redis key
+        :return: iter, [(timestamp, data),...]
         """
         hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
 

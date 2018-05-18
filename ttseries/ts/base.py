@@ -14,7 +14,27 @@ from ttseries.exceptions import SerializerError, RedisTimeSeriesError
 class RedisTSBase(object):
     """
     Redis Time-series base class
+
+    in redis sorted set, if want to filter the timestamp
+    with ">=", ">" or "<=", "<".
+
+    if want to filter the start timestamp >10,
+    the min or start timestamp could be `(10`,
+
+    or want to filter the start timestamp>=10
+    the min or start timestamp could be `10`
+
+    for end timestamp<10:
+    the max or end timestamp could be `(10`
+
+    for end timestamp<=10:
+    the max or end timestamp could be `10`
+
     """
+
+    # todo support redis cluster
+    # todo support parllizem and multi threading
+    # todo implement auto moving windows
 
     def __init__(self, redis_client, max_length=100000, transaction=True,
                  serializer_cls=serializers.MsgPackSerializer,
@@ -37,7 +57,7 @@ class RedisTSBase(object):
             raise SerializerError("Serializer class must inherit from "
                                   "ttseries.serializers.BaseSerializer abstract class")
 
-        self._compress = compressor_cls # todo implement
+        self._compress = compressor_cls  # todo implement
 
     @property
     @functools.lru_cache(maxsize=4096)
@@ -71,7 +91,7 @@ class RedisTSBase(object):
         """
         return self.client.zcard(name)
 
-    def count(self, name, start_timestamp:float=None, end_timestamp:float=None):
+    def count(self, name, start_timestamp: float = None, end_timestamp: float = None):
         """
         Time complexity: O(log(N)) with N being
         the number of elements in the sorted set.
