@@ -18,7 +18,6 @@ class BaseSerializer(abc.ABC):
         """
         Deserialize the data
         :param data: the structure data need to be
-        :return:
         """
         raise NotImplementedError()
 
@@ -27,7 +26,6 @@ class BaseSerializer(abc.ABC):
         """
         Serialize ``data`` to kinds of type
         :param data:
-        :return:
         """
         raise NotImplementedError()
 
@@ -40,7 +38,7 @@ class MsgPackDecoder(object):
     def decode(self, obj):
         """
         :param obj:
-        :return:
+        :return:obj
         """
         if "__cls__" in obj:
             decode_func = getattr(self, "decode_%s" % obj["__cls__"])
@@ -67,7 +65,7 @@ class MsgPackEncoder(object):
     def encode(self, obj):
         """
         :param obj:
-        :return:
+        :return: dict
         """
         if type(obj) is datetime.date:
             return {"__cls__": "date", "str": obj.isoformat()}
@@ -92,14 +90,16 @@ class MsgPackSerializer(BaseSerializer):
 
     def loads(self, data, *args, **kwargs):
         """
-        :param data:
-        :return:
+        deserializer data from message-pack format
+        :param data: bytes
+        :return:obj
         """
         return msgpack.unpackb(data, encoding="utf-8", object_hook=MsgPackDecoder().decode, **kwargs)
 
     def dumps(self, data, *args, **kwargs):
         """
-        :param data:
-        :return:
+        serializer data to message-pack format
+        :param data: obj
+        :return: bytes
         """
         return msgpack.packb(data, encoding="utf-8", default=MsgPackEncoder().encode, **kwargs)
