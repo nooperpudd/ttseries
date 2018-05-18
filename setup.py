@@ -37,6 +37,7 @@ setup(
     keywords="Time-Series, Time-Series Store",
     long_description=codecs.open("README.rst", encoding="utf-8").read(),
     zip_safe=False,
+    python_requires=">=3.6",
     packages=find_packages(exclude=["tests*", "docs"]),
     install_requires=codecs.open("requirements.txt", encoding="utf-8").readlines(),
     classifiers=[
