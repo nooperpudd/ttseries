@@ -9,23 +9,18 @@ from ttseries.ts.base import RedisTSBase
 
 class RedisHashTimeSeries(RedisTSBase):
     """
-    Use redis sorted-set with hash
-    Redis to save time-series data
-    use redis sorted set as the time-series
-    sorted as the desc
-     incr -> result
-        hmset key field value
-        zadd (sorted set) key score(timestamp) value
+    Use redis sorted set and hashes to store time-series data,
+    instead of using redis sorted set, combine redis hashes with auto
+    increase value, so the time-series can keep the data consistency.
+    sorted set [(timestamp,1),(timestamp,2),...]
+    hashes [(1,data),(2,data)...]
 
     support max length 2**63-1
-    hash can store up to 2**32 - 1 field-value pairs
+    redis hashes can store up to 2**32 - 1 field-value pairs
+
     """
     hash_format = "{key}:HASH"  # as the hash set id
     incr_format = "{key}:ID"  # as the auto increase id
-
-    # todo support redis cluster
-    # todo support parllizem and multi threading
-    # todo implement auto moving windows
 
     def get(self, name, timestamp):
         """
@@ -41,7 +36,6 @@ class RedisHashTimeSeries(RedisTSBase):
                                               max=timestamp)
         if result_id:
             data = self.client.hmget(hash_key, result_id)
-            # only one item
             return self._serializer.loads(data[0])
 
     def _auto_trim(self, name, key_id, hash_key):

@@ -31,6 +31,9 @@ class RedisTSBase(object):
     the max or end timestamp could be `10`
 
     """
+    # todo support redis cluster
+    # todo support parllizem and multi threading
+    # todo implement auto moving windows
 
     def __init__(self, redis_client, max_length=100000, transaction=True,
                  serializer_cls=serializers.MsgPackSerializer,
