@@ -8,11 +8,34 @@ from ttseries.ts.base import RedisTSBase
 
 class RedisSampleTimeSeries(RedisTSBase):
     """
-    ! important
+    Redis Time-series storage based on Sorted set.
+
+    !! important: Redis sorted-set can't create uniqueness item,
+    for example: if we want to store different timestamp with the
+    same data value, redis will ignore the data we want to try to store
+    it in the sorted set.
+
+    >>>(1526611599.240008, "a")
+    >>>(1526613549.240008, "a") # this item will not store it.
+
+    In-order to avoid this condition, user must avoid the repeated data to
+    store in the redis sorted-set.
+    If it's not important for the duplicated data to be stored in the redis,
+    we can just use RedisSampleTimeSeries, or use RedisHashTimeSeries instead of it.
+
+    but we still could has an option to change the source code of the redis,
+    let's it support some specific patch to full support time-series data.
+
     """
 
-    def add(self, name: str, timestamp, data):
-
+    def add(self, name: str, timestamp: float, data):
+        """
+        add one times-series data into redis
+        :param name: redis key
+        :param timestamp: float
+        :param data: obj
+        :return: int
+        """
         data = self._serializer.dumps(data)
 
         with self._lock:
@@ -23,11 +46,10 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
-
-        :param name:
-        :param timestamp_pairs:
-        :param chunks_size:
-        :return:
+        add many data into redis sorted-set
+        :param name: redis key
+        :param timestamp_pairs: data pairs, [("timestamp",data)...]
+        :param chunks_size: split data into chunk, optimize for redis pipeline
         """
         self.validate_key(name)
 
@@ -43,35 +65,45 @@ class RedisSampleTimeSeries(RedisTSBase):
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
-    def get(self, name: str, timestamp):
+    def get(self, name: str, timestamp: float):
         """
-        :param name:
-        :param timestamp:
-        :return:
+        get one item by timestamp
+        :param name: redis key
+        :param timestamp: float, timestamp
+        :return: obj
         """
         result = self.client.zrangebyscore(name, min=timestamp, max=timestamp)
         if result:
             return self._serializer.loads(result[0])
 
     def delete(self, name: str, start_timestamp=None, end_timestamp=None):
-
+        """
+        Removes all elements in the sorted set stored at key
+        between start timestamp and end timestamp (inclusive).
+        :param name: redis key,
+        :param start_timestamp: start timestamp
+        :param end_timestamp: end timestamp
+        :return: int, the result of the elements removed
+        """
         with self._lock:
             if start_timestamp or end_timestamp:
                 if start_timestamp is None:
                     start_timestamp = "-inf"
                 if end_timestamp is None:
                     end_timestamp = "+inf"
-                self.client.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
+                return self.client.zremrangebyscore(name, min=start_timestamp, max=end_timestamp)
             else:
-                self.client.delete(name)
+                return self.client.delete(name)
 
     def remove_many(self, names, start_timestamp=None, end_timestamp=None):
         """
-        remove many keys
-        :param names:
-        :param start_timestamp:
-        :param end_timestamp:
-        :return:
+        remove many keys with timestamp
+        ! if only parameter contains names, will directly delete redis key.
+        or with start timestamp and end timestamp will remove all elements
+        in the sorted set with keys, between with start timestamp and end timestamp
+        :param names: tuple, redis keys
+        :param start_timestamp: float, start timestamp
+        :param end_timestamp: float, end timestamp
         """
         chunks_data = ttseries.utils.chunks(names, 10000)
 
@@ -85,10 +117,9 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def trim(self, name, length):
         """
-
-        :param name:
-        :param length:
-        :return:
+        trim the sorted set with the length of the data.
+        :param name: redis key
+        :param length: length
         """
         length = int(length)
         current_length = self.length(name)
@@ -104,17 +135,17 @@ class RedisSampleTimeSeries(RedisTSBase):
     def get_slice(self, name, start_timestamp=None,
                   end_timestamp=None, limit=None, asc=True):
         """
-
-        :param name:
-        :param start_timestamp:
-        :param end_timestamp:
-        :param limit:
-        :param asc:
-        :return:
+        return a slice from redis sorted set with timestamp pairs
+        :param name: redis key
+        :param start_timestamp: start timestamp
+        :param end_timestamp: end timestamp
+        :param limit: int, limit the length of the result data.
+        :param asc: sorted as the timestamp values
+        :return: [(timestamp,data),...]
         """
         if asc:
             zrange_func = self.client.zrangebyscore
-        else:
+        else: # desc
             zrange_func = self.client.zrevrangebyscore
         if start_timestamp is None:
             start_timestamp = "-inf"
@@ -137,16 +168,19 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def iter_keys(self, count=None):
         """
-        :return:
+        generator iterator all redis keys
+        :param count: the number of the keys
+        :return: iter,
         """
         for item in self.client.scan_iter(count=count):
             yield item.decode("utf-8")
 
     def iter(self, name, count=None):
         """
-        :param name:
+        iterator all the time-series data with redis key.
+        :param name: redis key
         :param count:
-        :return:
+        :return: iter,
         """
         for item in self.client.zscan_iter(name, count=count):
             yield (item[1], self._serializer.loads(item[0]))
