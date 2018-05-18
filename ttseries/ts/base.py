@@ -14,6 +14,22 @@ from ttseries.exceptions import SerializerError, RedisTimeSeriesError
 class RedisTSBase(object):
     """
     Redis Time-series base class
+
+    in redis sorted set, if want to filter the timestamp
+    with ">=", ">" or "<=", "<".
+
+    if want to filter the start timestamp >10,
+    the min or start timestamp could be `(10`,
+
+    or want to filter the start timestamp>=10
+    the min or start timestamp could be `10`
+
+    for end timestamp<10:
+    the max or end timestamp could be `(10`
+
+    for end timestamp<=10:
+    the max or end timestamp could be `10`
+
     """
 
     def __init__(self, redis_client, max_length=100000, transaction=True,

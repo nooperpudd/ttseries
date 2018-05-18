@@ -46,7 +46,7 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
-        add many data into redis sorted-set
+        add large amount of data into redis sorted-set
         :param name: redis key
         :param timestamp_pairs: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
@@ -80,6 +80,8 @@ class RedisSampleTimeSeries(RedisTSBase):
         """
         Removes all elements in the sorted set stored at key
         between start timestamp and end timestamp (inclusive).
+        if parameter only contains `name`, will delete all data stored in redis key.
+
         :param name: redis key,
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
@@ -117,9 +119,10 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def trim(self, name, length):
         """
-        trim the sorted set with the length of the data.
+        trim the redis sorted set as the length of the data.
+        trim the data with timestamp as the asc
         :param name: redis key
-        :param length: length
+        :param length: int, length
         """
         length = int(length)
         current_length = self.length(name)
@@ -136,11 +139,12 @@ class RedisSampleTimeSeries(RedisTSBase):
                   end_timestamp=None, limit=None, asc=True):
         """
         return a slice from redis sorted set with timestamp pairs
+
         :param name: redis key
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
         :param limit: int, limit the length of the result data.
-        :param asc: sorted as the timestamp values
+        :param asc: bool, sorted as the timestamp values
         :return: [(timestamp,data),...]
         """
         if asc:
@@ -168,7 +172,7 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def iter_keys(self, count=None):
         """
-        generator iterator all redis keys
+        generator iterator all time-series keys
         :param count: the number of the keys
         :return: iter,
         """
@@ -180,7 +184,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         iterator all the time-series data with redis key.
         :param name: redis key
         :param count:
-        :return: iter,
+        :return: iter, [(timestamp, data),...]
         """
         for item in self.client.zscan_iter(name, count=count):
             yield (item[1], self._serializer.loads(item[0]))
