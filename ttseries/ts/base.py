@@ -31,6 +31,7 @@ class RedisTSBase(object):
     the max or end timestamp could be `10`
 
     """
+
     # todo support redis cluster
     # todo support parllizem and multi threading
     # todo implement auto moving windows
@@ -56,7 +57,7 @@ class RedisTSBase(object):
             raise SerializerError("Serializer class must inherit from "
                                   "ttseries.serializers.BaseSerializer abstract class")
 
-        self._compress = compressor_cls # todo implement
+        self._compress = compressor_cls  # todo implement
 
     @property
     @functools.lru_cache(maxsize=4096)
@@ -90,7 +91,7 @@ class RedisTSBase(object):
         """
         return self.client.zcard(name)
 
-    def count(self, name, start_timestamp:float=None, end_timestamp:float=None):
+    def count(self, name, start_timestamp: float = None, end_timestamp: float = None):
         """
         Time complexity: O(log(N)) with N being
         the number of elements in the sorted set.

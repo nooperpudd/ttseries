@@ -149,7 +149,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         """
         if asc:
             zrange_func = self.client.zrangebyscore
-        else: # desc
+        else:  # desc
             zrange_func = self.client.zrevrangebyscore
         if start_timestamp is None:
             start_timestamp = "-inf"
