@@ -1,26 +1,53 @@
-ttseries
+TTseries
 ========
 
 High-performance engine to store Time-series data in Redis.
 
-|travis| |appveyor| |codecov| |codacy| |requirements| |pypi| |status| |pyversion|
+|travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion|
+
 
 Install
 =======
+
+    pip install ttseries --upgrade
 
 
 Documentation
 =============
 
+TT-series is based on redis sorted sets to store the time-series data,
+Redis sorted sets can support maximum 2**32-1 members, more than 4 billion of
+numbers per set.
+
+
+
 
 Usage
 =====
+
+Redis Sorted sets have the data consistency principle,
+For elements with the same timestamp or different timestamps
+with the same data, but for the time-series data storage principle,
+if the repeated data with different timestamps to store in redis
+sorted sets, one element have been add to the sorted sets,
+ but duplicated timestamp can't add to the sorted sets.
+
+
+`RedisHashTimeSeries`
+
+
+`RedisSimpleTimeSeries`
+
+
+
+Benchmark
+=========
 
 
 Author
 ======
 
-
+- Winton Wang
 
 Donate
 ======
@@ -29,15 +56,16 @@ Donate
 Contact
 =======
 
+Email: 365504029@qq.com
 
 
 
 
 
-.. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg
+.. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master
     :target: https://travis-ci.org/nooperpudd/ttseries
 
-.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/ntlhwaagr5dqh341?svg=true
+.. |appveyor| image:: https://ci.appveyor.com/api/projects/status/ntlhwaagr5dqh341/branch/master?svg=true
     :target: https://ci.appveyor.com/project/nooperpudd/ttseries
 
 .. |codecov| image:: https://codecov.io/gh/nooperpudd/ttseries/branch/master/graph/badge.svg
@@ -58,4 +86,6 @@ Contact
 .. |requirements| image:: https://requires.io/github/nooperpudd/ttseries/requirements.svg?branch=master
     :target: https://requires.io/github/nooperpudd/ttseries/requirements/?branch=master
 
+.. |docs| image:: https://readthedocs.org/projects/ttseries/badge/?version=latest
+    :target: http://ttseries.readthedocs.io/en/latest/?badge=latest
 

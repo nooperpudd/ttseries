@@ -10,16 +10,16 @@ class RedisSampleTimeSeries(RedisTSBase):
     """
     Redis Time-series storage based on Sorted set.
 
-    !! important: Redis sorted-set can't create uniqueness item,
+    !! important: Redis sorted sets can't create uniqueness item,
     for example: if we want to store different timestamp with the
     same data value, redis will ignore the data we want to try to store
-    it in the sorted set.
+    it in the sorted sets.
 
     >>>(1526611599.240008, "a")
     >>>(1526613549.240008, "a") # this item will not store it.
 
     In-order to avoid this condition, user must avoid the repeated data to
-    store in the redis sorted-set.
+    store in the redis sorted sets.
     If it's not important for the duplicated data to be stored in the redis,
     we can just use RedisSampleTimeSeries, or use RedisHashTimeSeries instead of it.
 
@@ -46,7 +46,7 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
-        add large amount of data into redis sorted-set
+        add large amount of data into redis sorted sets
         :param name: redis key
         :param timestamp_pairs: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
@@ -78,7 +78,7 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def delete(self, name: str, start_timestamp=None, end_timestamp=None):
         """
-        Removes all elements in the sorted set stored at key
+        Removes all elements in the sorted sets stored at key
         between start timestamp and end timestamp (inclusive).
         if parameter only contains `name`, will delete all data stored in redis key.
 
@@ -102,7 +102,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         remove many keys with timestamp
         ! if only parameter contains names, will directly delete redis key.
         or with start timestamp and end timestamp will remove all elements
-        in the sorted set with keys, between with start timestamp and end timestamp
+        in the sorted sets with keys, between with start timestamp and end timestamp
         :param names: tuple, redis keys
         :param start_timestamp: float, start timestamp
         :param end_timestamp: float, end timestamp
@@ -119,7 +119,7 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     def trim(self, name, length):
         """
-        trim the redis sorted set as the length of the data.
+        trim the redis sorted sets as the length of the data.
         trim the data with timestamp as the asc
         :param name: redis key
         :param length: int, length
@@ -138,7 +138,7 @@ class RedisSampleTimeSeries(RedisTSBase):
     def get_slice(self, name, start_timestamp=None,
                   end_timestamp=None, limit=None, asc=True):
         """
-        return a slice from redis sorted set with timestamp pairs
+        return a slice from redis sorted sets with timestamp pairs
 
         :param name: redis key
         :param start_timestamp: start timestamp
