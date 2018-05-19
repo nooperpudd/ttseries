@@ -9,14 +9,14 @@ from ttseries.ts.base import RedisTSBase
 
 class RedisHashTimeSeries(RedisTSBase):
     """
-    Use redis sorted set and hashes to store time-series data,
-    instead of using redis sorted set, combine redis hashes with auto
+    Use redis sorted sets and hashes to store time-series data,
+    instead of using redis sorted sets, combine redis hashes with auto
     increase value, so the time-series can keep the data consistency.
-    sorted set [(timestamp,1),(timestamp,2),...]
+
+    sorted sets [(timestamp,1),(timestamp,2),...]
     hashes [(1,data),(2,data)...]
 
-    support max length 2**63-1
-    redis hashes can store up to 2**32 - 1 field-value pairs
+    support max length 2**32-1 timestamp stored
 
     """
     hash_format = "{key}:HASH"  # as the hash set id
@@ -103,7 +103,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
         """
-        Removes all elements in the sorted set stored at key
+        Removes all elements in the sorted sets stored at key
         between start timestamp and end timestamp (inclusive).
         if parameter only contains `name`, will delete all data stored in redis key.
 
@@ -144,7 +144,7 @@ class RedisHashTimeSeries(RedisTSBase):
         remove many keys with timestamp
         ! if only parameter contains names, will directly delete redis key.
         or with start timestamp and end timestamp will remove all elements
-        in the sorted set with keys, between with start timestamp and end timestamp
+        in the sorted sets with keys, between with start timestamp and end timestamp
 
         :param names: tuple, redis keys
         :param start_timestamp: float, start timestamp
@@ -165,7 +165,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def trim(self, name, length: int):
         """
-        trim redis sorted set key as the number of length,
+        trim redis sorted sets key as the number of length,
         trim the data with timestamp as the asc
         :param name: redis key
         :param length: int, length
@@ -195,7 +195,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
         """
-        return a slice from redis sorted set with timestamp pairs
+        return a slice from redis sorted sets with timestamp pairs
 
         :param name: redis key
         :param start_timestamp: start timestamp
@@ -231,7 +231,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
     def add_many(self, name, timestamp_pairs, chunks_size=2000):
         """
-        add large amount of data into redis sorted-set
+        add large amount of data into redis sorted sets
         :param name: redis key
         :param timestamp_pairs: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline

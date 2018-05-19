@@ -3,9 +3,8 @@ import abc
 import datetime
 import decimal
 
-from dateutil import parser
-
 import msgpack
+from dateutil import parser
 
 
 class BaseSerializer(abc.ABC):
@@ -13,6 +12,7 @@ class BaseSerializer(abc.ABC):
     The base serializer class,
     only defines the signature for loads and dumps
     """
+
     @abc.abstractmethod
     def loads(self, data, *args, **kwargs):
         """
@@ -62,6 +62,7 @@ class MsgPackEncoder(object):
     """
     encode the data type to the message pack format
     """
+
     def encode(self, obj):
         """
         :param obj:
@@ -103,3 +104,14 @@ class MsgPackSerializer(BaseSerializer):
         :return: bytes
         """
         return msgpack.packb(data, encoding="utf-8", default=MsgPackEncoder().encode, **kwargs)
+
+
+class DumpySerializer(BaseSerializer):
+    """
+    dumpy serializer class
+    """
+    def dumps(self, data, *args, **kwargs):
+        pass
+
+    def loads(self, data, *args, **kwargs):
+        pass
