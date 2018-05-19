@@ -1,4 +1,4 @@
-from ttseries.exceptions import RedisTimeSeriesException
+from ttseries.exceptions import RedisTimeSeriesError
 
 
 class Mixin(object):
@@ -36,7 +36,7 @@ class Mixin(object):
 
     def test_assert_key_validate(self):
 
-        with self.assertRaises(RedisTimeSeriesException):
+        with self.assertRaises(RedisTimeSeriesError):
             key1 = "nihao:ID"
             results = self.generate_data(10)
             self.time_series.add_many(key1, results)
@@ -496,7 +496,7 @@ class Mixin(object):
         data_list = self.generate_data(5)
         key = "AAPL:SECOND:50"
 
-        with self.assertRaises(RedisTimeSeriesException):
+        with self.assertRaises(RedisTimeSeriesError):
             self.time_series.add_many(key, data_list)
             self.assertEqual(self.time_series.count(key), 5)
             results = self.time_series.get_slice(key)

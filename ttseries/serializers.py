@@ -3,9 +3,8 @@ import abc
 import datetime
 import decimal
 
-from dateutil import parser
-
 import msgpack
+from dateutil import parser
 
 
 class BaseSerializer(abc.ABC):
@@ -13,12 +12,12 @@ class BaseSerializer(abc.ABC):
     The base serializer class,
     only defines the signature for loads and dumps
     """
+
     @abc.abstractmethod
     def loads(self, data, *args, **kwargs):
         """
         Deserialize the data
         :param data: the structure data need to be
-        :return:
         """
         raise NotImplementedError()
 
@@ -27,7 +26,6 @@ class BaseSerializer(abc.ABC):
         """
         Serialize ``data`` to kinds of type
         :param data:
-        :return:
         """
         raise NotImplementedError()
 
@@ -40,7 +38,7 @@ class MsgPackDecoder(object):
     def decode(self, obj):
         """
         :param obj:
-        :return:
+        :return:obj
         """
         if "__cls__" in obj:
             decode_func = getattr(self, "decode_%s" % obj["__cls__"])
@@ -64,10 +62,11 @@ class MsgPackEncoder(object):
     """
     encode the data type to the message pack format
     """
+
     def encode(self, obj):
         """
         :param obj:
-        :return:
+        :return: dict
         """
         if type(obj) is datetime.date:
             return {"__cls__": "date", "str": obj.isoformat()}
@@ -92,14 +91,27 @@ class MsgPackSerializer(BaseSerializer):
 
     def loads(self, data, *args, **kwargs):
         """
-        :param data:
-        :return:
+        deserializer data from message-pack format
+        :param data: bytes
+        :return:obj
         """
         return msgpack.unpackb(data, encoding="utf-8", object_hook=MsgPackDecoder().decode, **kwargs)
 
     def dumps(self, data, *args, **kwargs):
         """
-        :param data:
-        :return:
+        serializer data to message-pack format
+        :param data: obj
+        :return: bytes
         """
         return msgpack.packb(data, encoding="utf-8", default=MsgPackEncoder().encode, **kwargs)
+
+
+class DumpySerializer(BaseSerializer):
+    """
+    dumpy serializer class
+    """
+    def dumps(self, data, *args, **kwargs):
+        pass
+
+    def loads(self, data, *args, **kwargs):
+        pass

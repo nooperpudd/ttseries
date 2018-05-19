@@ -8,22 +8,43 @@ import numpy as np
 import redis
 
 from ttseries import serializers
-from ttseries.exceptions import SerializerError, RedisTimeSeriesException
+from ttseries.exceptions import SerializerError, RedisTimeSeriesError
 
 
 class RedisTSBase(object):
     """
+    Redis Time-series base class
+
+    in redis sorted sets, if want to filter the timestamp
+    with ">=", ">" or "<=", "<".
+
+    if want to filter the start timestamp >10,
+    the min or start timestamp could be `(10`,
+
+    or want to filter the start timestamp>=10
+    the min or start timestamp could be `10`
+
+    for end timestamp<10:
+    the max or end timestamp could be `(10`
+
+    for end timestamp<=10:
+    the max or end timestamp could be `10`
+
     """
 
-    def __init__(self, redis_client: redis.StrictRedis, max_length=100000, transaction=True,
+    # todo support redis cluster
+    # todo support parllizem and multi threading
+    # todo implement auto moving windows
+
+    def __init__(self, redis_client, max_length=100000, transaction=True,
                  serializer_cls=serializers.MsgPackSerializer,
                  compressor_cls=None):
         """
-        :param redis_client:
-        :param max_length: store redis data by key with max length.
-        :param transaction:
-        :param serializer_cls:
-        :param compressor_cls:
+        :param redis_client: redis client instance, only test with redis-py client.
+        :param max_length: int, max length of data to store the time-series data.
+        :param transaction: bool, to ensure all the add or delete commands can be executed atomically
+        :param serializer_cls: serializer class, serializer the data
+        :param compressor_cls: compress class, compress the data
         """
         self._redis_client = redis_client
         self.max_length = max_length
@@ -33,21 +54,23 @@ class RedisTSBase(object):
         if issubclass(serializer_cls, serializers.BaseSerializer):
             self._serializer = serializer_cls()
         else:
-            raise SerializerError("Serializer class must base in BaseSerializer abstract class")
+            raise SerializerError("Serializer class must inherit from "
+                                  "ttseries.serializers.BaseSerializer abstract class")
 
-        self._compress = compressor_cls
+        self._compress = compressor_cls  # todo implement
 
     @property
     @functools.lru_cache(maxsize=4096)
     def client(self):
         """
-        :return:
+        :return: redis client
         """
         return self._redis_client
 
     @contextlib.contextmanager
     def _pipe_acquire(self):
         """
+        redis pipeline
         :return:
         """
         yield self.client.pipeline(transaction=self.transaction)
@@ -62,17 +85,19 @@ class RedisTSBase(object):
     def length(self, name):
         """
         Time complexity: O(1)
-        :return:
+        get the time-series length from a key
+        :param name: redis key
+        :return: int
         """
         return self.client.zcard(name)
 
-    def count(self, name, start_timestamp=None, end_timestamp=None):
+    def count(self, name, start_timestamp: float = None, end_timestamp: float = None):
         """
         Time complexity: O(log(N)) with N being
-        the number of elements in the sorted set.
-        :param name:
-        :param start_timestamp:
-        :param end_timestamp:
+        the number of elements in the sorted sets.
+        :param name: redis key
+        :param start_timestamp: float, start timestamp
+        :param end_timestamp: float, end timestamp
         :return: int
         """
         if start_timestamp is None:
@@ -84,25 +109,28 @@ class RedisTSBase(object):
     def exists(self, name):
         """
         exist key in name
-        :param name:
-        :return:
+        :param name: redis key
+        :return: bool
         """
         return self.client.exists(name)
 
     def exist_timestamp(self, name, timestamp) -> bool:
         """
+        Time complexity: O(log(N))
+        check a timestamp exist in redis sorted sets
         :param name:
         :param timestamp:
         :return:
         """
-        # Time complexity: O(log(N))
         return bool(self.client.zcount(name, min=timestamp, max=timestamp))
 
     def transaction_pipe(self, pipe_func, watch_keys=None, *args, **kwargs):
         """
-        https://github.com/andymccurdy/redis-py/pull/560/files
-        :param watch_keys:
-        :param pipe_func:
+        Convenience callable `func` as executable in a
+        transaction while watching all keys specified in `watches`.
+        The 'func' callable should expect a Pipeline object as its first argument.
+        :param pipe_func: function
+        :param watch_keys: redis watch keys
         :param args:
         :param kwargs:
         :return:
@@ -126,15 +154,20 @@ class RedisTSBase(object):
 
     def validate_key(self, name):
         """
+        validate redis key can't contains specific names
         :param name:
-        :return:
         """
         if ":HASH" in name or ":ID" in name:
-            raise RedisTimeSeriesException("Key can't contains `:HASH`, `:ID`")
+            raise RedisTimeSeriesError("Key can't contains `:HASH`, `:ID` values.")
 
     def _add_many_validate(self, name, array_data):
         """
-        :return:
+        before to insert the data into redis,
+        auto to trim the data exists in redis,
+        and validate the timestamp already exist in redis
+        :param name: redis key
+        :param array_data: array data
+        :return: sorted array data
         """
         array_length = len(array_data)
 
@@ -149,7 +182,7 @@ class RedisTSBase(object):
             start_timestamp = array_data["timestamp"].min()
             end_timestamp = array_data["timestamp"].max()
         else:
-            raise RedisTimeSeriesException("nonsupport array data type")
+            raise RedisTimeSeriesError("nonsupport array data type")
 
         if array_length + self.length(name) >= self.max_length:
             trim_length = array_length + self.length(name) - self.max_length
@@ -159,6 +192,6 @@ class RedisTSBase(object):
             array_data = array_data[array_length - self.max_length:]
 
         if self.count(name, start_timestamp, end_timestamp) > 0:
-            raise RedisTimeSeriesException("exist timestamp in redis")
+            raise RedisTimeSeriesError("exist timestamp in redis")
         else:
             return array_data

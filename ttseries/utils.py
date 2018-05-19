@@ -4,9 +4,12 @@ import itertools
 import numpy as np
 
 
-def chunks_numpy(array: np.array, chunk_size=2000):
+def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
     """
-    :return:
+    split numpy array in to chunk data
+    :param array: numpy array
+    :param chunk_size: int, split data as the length of chunks
+    :return: numpy array
     """
     length = len(array)
     if length > chunk_size:
@@ -17,7 +20,7 @@ def chunks_numpy(array: np.array, chunk_size=2000):
         yield array
 
 
-def chunks(iterable, chunk_size=1000):
+def chunks(iterable, chunk_size: int = 1000):
     """
     >>> chunks(range(6),chunk_size=2)
     ... [(0,1),(2,3),(4,5)]

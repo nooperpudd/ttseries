@@ -1,8 +1,8 @@
-class RedisTimeSeriesException(Exception):
+class RedisTimeSeriesError(Exception):
     """
-    redis Exception
+    redis time-series error
     """
-    pass
+
 
 class SerializerError(Exception):
     """
