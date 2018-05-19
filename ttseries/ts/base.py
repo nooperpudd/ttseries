@@ -36,13 +36,15 @@ class RedisTSBase(object):
     # todo support parllizem and multi threading
     # todo implement auto moving windows
 
-    def __init__(self, redis_client, max_length=100000, transaction=True,
+    def __init__(self, redis_client, max_length=100000,
+                 transaction=True, use_numpy=False,
                  serializer_cls=serializers.MsgPackSerializer,
                  compressor_cls=None):
         """
         :param redis_client: redis client instance, only test with redis-py client.
         :param max_length: int, max length of data to store the time-series data.
         :param transaction: bool, to ensure all the add or delete commands can be executed atomically
+        :param use_numpy: bool, support numpy array to store and get data.
         :param serializer_cls: serializer class, serializer the data
         :param compressor_cls: compress class, compress the data
         """
@@ -50,6 +52,7 @@ class RedisTSBase(object):
         self.max_length = max_length
         self.transaction = transaction
         self._lock = threading.RLock()
+        self.use_numpy = use_numpy
 
         if issubclass(serializer_cls, serializers.BaseSerializer):
             self._serializer = serializer_cls()
