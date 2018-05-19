@@ -42,3 +42,9 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
         for key in rest_keys:
             result = self.time_series.get_slice(key)
             self.assertListEqual(data_list, result)
+
+    def test_add_numpy_array(self):
+        array = self.prepare_numpy_data(10)
+
+        key = "APPL:SECOND:5"
+        # self.time_series.add_many_with_numpy(key,array)

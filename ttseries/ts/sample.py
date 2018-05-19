@@ -2,6 +2,8 @@
 
 import itertools
 
+import numpy as np
+
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
 
@@ -64,6 +66,36 @@ class RedisSampleTimeSeries(RedisTSBase):
                 _pipe.zadd(name, *tuple(filter_data))
 
             self.transaction_pipe(pipe_func, watch_keys=name)
+
+    def add_many_with_numpy(self, name, array: np.ndarray,
+                            timestamp_column_index=0,
+                            timestamp_name=None,
+                            chunk_size=1000):
+        """
+        array data likes:
+        >>>[[timestamp,"a","c"],
+        >>> [timestamp,"b","e"],
+        >>> [timestamp,"c","a"],...]
+        :param name:
+        :param array:
+        :param timestamp_name:
+        :param timestamp_column_index:
+        :param chunk_size:
+        :return:
+        """
+        self.validate_key(name)
+
+        array = self._add_many_validate(name, array)
+
+        # array[:, 1::]
+        serializer_func = np.vectorize(self._serializer.dumps)
+        for item in ttseries.utils.chunks_numpy(array, 1000):
+
+            for inner in item:
+                def pipe_func(_pipe):
+                    _pipe.zadd(name, *inner.tolist())
+
+                self.transaction_pipe(pipe_func, watch_keys=name)
 
     def get(self, name: str, timestamp: float):
         """

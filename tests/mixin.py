@@ -1,3 +1,5 @@
+import numpy as np
+
 from ttseries.exceptions import RedisTimeSeriesError
 
 
@@ -33,6 +35,16 @@ class Mixin(object):
             for timestamp, item in data_list:
                 self.time_series.add(key, timestamp, item)
         return keys
+
+    def prepare_numpy_data(self, length):
+
+        data_list = []
+        for i in range(length):
+            timestamp = self.timestamp + i
+            data_list.append((timestamp, i, (str(i) + "a")))
+        array = np.array(data_list)
+
+        return array
 
     def test_assert_key_validate(self):
 

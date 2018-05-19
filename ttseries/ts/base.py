@@ -163,13 +163,17 @@ class RedisTSBase(object):
         if ":HASH" in name or ":ID" in name:
             raise RedisTimeSeriesError("Key can't contains `:HASH`, `:ID` values.")
 
-    def _add_many_validate(self, name, array_data):
+    def _add_many_validate(self, name, array_data,
+                           timestamp_column_name=None,
+                           timestamp_column_index=0):
         """
         before to insert the data into redis,
         auto to trim the data exists in redis,
         and validate the timestamp already exist in redis
         :param name: redis key
         :param array_data: array data
+        :param timestamp_column_name: str, timestamp numpy column name
+        :param timestamp_column_index: int, timestamp numpy column index
         :return: sorted array data
         """
         array_length = len(array_data)
@@ -181,9 +185,16 @@ class RedisTSBase(object):
             start_timestamp = array_data[0][0]  # min
 
         elif isinstance(array_data, np.ndarray):
-            array_data = array_data.sort(order=["timestamp"])
-            start_timestamp = array_data["timestamp"].min()
-            end_timestamp = array_data["timestamp"].max()
+            if timestamp_column_name:
+                array_data = np.sort(array_data, order=[timestamp_column_name])
+                start_timestamp = array_data[timestamp_column_name].min()
+                end_timestamp = array_data[timestamp_column_name].max()
+            else:
+                # timestamp column index
+                # todo change the dtype
+                array_data = np.sort(array_data, axis=timestamp_column_index)
+                start_timestamp = array_data[:, timestamp_column_index].astype("float64").min()
+                end_timestamp = array_data[:, timestamp_column_index].astype("float64").max()
         else:
             raise RedisTimeSeriesError("nonsupport array data type")
 
