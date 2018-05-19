@@ -15,7 +15,7 @@ class RedisTSBase(object):
     """
     Redis Time-series base class
 
-    in redis sorted set, if want to filter the timestamp
+    in redis sorted sets, if want to filter the timestamp
     with ">=", ">" or "<=", "<".
 
     if want to filter the start timestamp >10,
@@ -94,7 +94,7 @@ class RedisTSBase(object):
     def count(self, name, start_timestamp: float = None, end_timestamp: float = None):
         """
         Time complexity: O(log(N)) with N being
-        the number of elements in the sorted set.
+        the number of elements in the sorted sets.
         :param name: redis key
         :param start_timestamp: float, start timestamp
         :param end_timestamp: float, end timestamp
@@ -117,7 +117,7 @@ class RedisTSBase(object):
     def exist_timestamp(self, name, timestamp) -> bool:
         """
         Time complexity: O(log(N))
-        check a timestamp exist in redis sorted set
+        check a timestamp exist in redis sorted sets
         :param name:
         :param timestamp:
         :return:
