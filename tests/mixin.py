@@ -46,6 +46,17 @@ class Mixin(object):
 
         return array
 
+    def prepare_numpy_data_with_columns(self, length):
+        data_list = []
+
+        for i in range(length):
+            timestamp = self.timestamp + i
+            data_list.append((timestamp, i, (str(i) + "a")))
+        array = np.array(data_list, dtype=[('timestamp', 'float64'),
+                                           ('B', 'int'),
+                                           ('C', '<U32')])
+        return array
+
     def test_assert_key_validate(self):
 
         with self.assertRaises(RedisTimeSeriesError):

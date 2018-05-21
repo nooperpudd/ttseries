@@ -1,6 +1,7 @@
 # encoding:utf-8
 import contextlib
 import functools
+import itertools
 import threading
 from operator import itemgetter
 
@@ -163,6 +164,20 @@ class RedisTSBase(object):
         if ":HASH" in name or ":ID" in name:
             raise RedisTimeSeriesError("Key can't contains `:HASH`, `:ID` values.")
 
+    def repeated_array(self, array_data):
+        """
+        :param array_data: [(timestamp,data),...]
+        :return:
+        """
+        timestamps, _ = itertools.zip_longest(*array_data)
+        timestamps_set = set()
+
+        for timestamp in timestamps:
+            if timestamp in timestamps_set:
+                raise RedisTimeSeriesError("repeated timestamps:", timestamp)
+            else:
+                timestamps_set.add(timestamp)
+
     def _add_many_validate(self, name, array_data,
                            timestamp_column_name=None,
                            timestamp_column_index=0):
@@ -179,22 +194,36 @@ class RedisTSBase(object):
         array_length = len(array_data)
 
         if isinstance(array_data, list):
-            # todo maybe other way to optimize this filter code
+
+            self.repeated_array(array_data)
+
             array_data = sorted(array_data, key=itemgetter(0))
             end_timestamp = array_data[-1][0]  # max
             start_timestamp = array_data[0][0]  # min
 
         elif isinstance(array_data, np.ndarray):
+
             if timestamp_column_name:
+                timestamp_array = array_data[timestamp_column_name].astype("float64")
+
+                if len(np.unique(timestamp_array)) != len(array_data):
+                    raise RedisTimeSeriesError("repeated timestamps")
+                array_data[timestamp_column_name] = timestamp_array
+
                 array_data = np.sort(array_data, order=[timestamp_column_name])
-                start_timestamp = array_data[timestamp_column_name].min()
-                end_timestamp = array_data[timestamp_column_name].max()
+                start_timestamp = timestamp_array.min()
+                end_timestamp = timestamp_array.max()
             else:
-                # timestamp column index
-                # todo change the dtype
+
+                timestamp_array = array_data[:, timestamp_column_index].astype("float64")
+
+                if len(np.unique(timestamp_array)) != len(timestamp_array):
+                    raise RedisTimeSeriesError("repeated timestamps")
+                array_data[:, timestamp_column_index] = timestamp_array
+
                 array_data = np.sort(array_data, axis=timestamp_column_index)
-                start_timestamp = array_data[:, timestamp_column_index].astype("float64").min()
-                end_timestamp = array_data[:, timestamp_column_index].astype("float64").max()
+                start_timestamp = timestamp_array.min()
+                end_timestamp = timestamp_array.max()
         else:
             raise RedisTimeSeriesError("nonsupport array data type")
 
@@ -205,6 +234,7 @@ class RedisTSBase(object):
         if array_length > self.max_length:
             array_data = array_data[array_length - self.max_length:]
 
+        # todo bugs
         if self.count(name, start_timestamp, end_timestamp) > 0:
             raise RedisTimeSeriesError("exist timestamp in redis")
         else:
