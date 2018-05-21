@@ -201,24 +201,29 @@ class RedisTSBase(object):
             end_timestamp = array_data[-1][0]  # max
             start_timestamp = array_data[0][0]  # min
 
+        # numpy array
         elif isinstance(array_data, np.ndarray):
 
             if timestamp_column_name:
+
                 timestamp_array = array_data[timestamp_column_name].astype("float64")
 
                 if len(np.unique(timestamp_array)) != len(array_data):
                     raise RedisTimeSeriesError("repeated timestamps")
+
                 array_data[timestamp_column_name] = timestamp_array
 
                 array_data = np.sort(array_data, order=[timestamp_column_name])
                 start_timestamp = timestamp_array.min()
                 end_timestamp = timestamp_array.max()
+
             else:
 
                 timestamp_array = array_data[:, timestamp_column_index].astype("float64")
 
                 if len(np.unique(timestamp_array)) != len(timestamp_array):
                     raise RedisTimeSeriesError("repeated timestamps")
+
                 array_data[:, timestamp_column_index] = timestamp_array
 
                 array_data = np.sort(array_data, axis=timestamp_column_index)
@@ -227,6 +232,8 @@ class RedisTSBase(object):
         else:
             raise RedisTimeSeriesError("nonsupport array data type")
 
+        # auto trim array
+
         if array_length + self.length(name) >= self.max_length:
             trim_length = array_length + self.length(name) - self.max_length
             self.trim(name, trim_length)
@@ -234,8 +241,20 @@ class RedisTSBase(object):
         if array_length > self.max_length:
             array_data = array_data[array_length - self.max_length:]
 
-        # todo bugs
-        if self.count(name, start_timestamp, end_timestamp) > 0:
-            raise RedisTimeSeriesError("exist timestamp in redis")
+        exist_length = self.count(name, start_timestamp, end_timestamp)
+
+        #  todo split chunks
+
+        if exist_length > 0:
+            if self.use_numpy:
+                pass
+            else:
+                filter_array = self.get_slice(name, start_timestamp, end_timestamp)
+
+                filter_timestamps, _ = itertools.zip_longest(*filter_array)
+                timestamps, _ = itertools.zip_longest(*array_data)
+                common_timestamps = set(filter_timestamps) & set(timestamps)
+                if common_timestamps:
+                    raise RedisTimeSeriesError("add duplicated timestamp into redis", common_timestamps)
         else:
             return array_data
