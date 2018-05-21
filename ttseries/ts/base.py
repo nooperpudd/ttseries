@@ -209,7 +209,7 @@ class RedisTSBase(object):
                 timestamp_array = array_data[timestamp_column_name].astype("float64")
 
                 if len(np.unique(timestamp_array)) != len(array_data):
-                    raise RedisTimeSeriesError("repeated timestamps")
+                    raise RedisTimeSeriesError("repeated timestamps in array data")
 
                 array_data[timestamp_column_name] = timestamp_array
 
@@ -222,7 +222,7 @@ class RedisTSBase(object):
                 timestamp_array = array_data[:, timestamp_column_index].astype("float64")
 
                 if len(np.unique(timestamp_array)) != len(timestamp_array):
-                    raise RedisTimeSeriesError("repeated timestamps")
+                    raise RedisTimeSeriesError("repeated timestamps in array data")
 
                 array_data[:, timestamp_column_index] = timestamp_array
 
@@ -241,15 +241,18 @@ class RedisTSBase(object):
         if array_length > self.max_length:
             array_data = array_data[array_length - self.max_length:]
 
+        # validate timestamp exists
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
-        #  todo split chunks
+
 
         if exist_length > 0:
+            #  todo split chunks
+            filter_array = self.get_slice(name, start_timestamp, end_timestamp)
+
             if self.use_numpy:
                 pass
             else:
-                filter_array = self.get_slice(name, start_timestamp, end_timestamp)
 
                 filter_timestamps, _ = itertools.zip_longest(*filter_array)
                 timestamps, _ = itertools.zip_longest(*array_data)
