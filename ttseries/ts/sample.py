@@ -67,10 +67,10 @@ class RedisSampleTimeSeries(RedisTSBase):
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
-    def add_many_with_numpy(self, name, array: np.ndarray,
-                            timestamp_column_index=0,
-                            timestamp_name=None,
-                            chunk_size=1000):
+    def add_numpy_array(self, name, array: np.ndarray,
+                        timestamp_column_index=0,
+                        timestamp_column_name=None,
+                        chunk_size=1000):
         """
         array data likes:
         >>>[[timestamp,"a","c"],
@@ -78,8 +78,8 @@ class RedisSampleTimeSeries(RedisTSBase):
         >>> [timestamp,"c","a"],...]
         :param name:
         :param array:
-        :param timestamp_name:
         :param timestamp_column_index:
+        :param timestamp_column_name:
         :param chunk_size:
         :return:
         """
@@ -87,15 +87,31 @@ class RedisSampleTimeSeries(RedisTSBase):
 
         array = self._add_many_validate(name, array)
 
+        print(array)
         # array[:, 1::]
-        serializer_func = np.vectorize(self._serializer.dumps)
+        # todo need change array dtype
+        # serializer_array = np.apply_along_axis(
+        #     lambda x: (x[0], self._serializer.dumps(x[1:].tolist())), 1, array)
+        # print(serializer_array)
         for item in ttseries.utils.chunks_numpy(array, 1000):
+            with self._lock, self._pipe_acquire() as pipe:
+                pipe.watch(name)
+                pipe.multi()
 
-            for inner in item:
-                def pipe_func(_pipe):
-                    _pipe.zadd(name, *inner.tolist())
+                def iter_numpy(arr):
+                    timestamp = arr[0]
+                    data = self._serializer.dumps(arr[1:].tolist())
+                    pipe.zadd(name, timestamp, data)
 
-                self.transaction_pipe(pipe_func, watch_keys=name)
+                np.apply_along_axis(iter_numpy, 1, item)
+
+                pipe.execute()
+
+            # for inner in item:
+            #     def pipe_func(_pipe):
+            #         _pipe.zadd(name, *inner.tolist())
+
+            # self.transaction_pipe(pipe_func, watch_keys=name)
 
     def get(self, name: str, timestamp: float):
         """
@@ -106,7 +122,10 @@ class RedisSampleTimeSeries(RedisTSBase):
         """
         result = self.client.zrangebyscore(name, min=timestamp, max=timestamp)
         if result:
-            return self._serializer.loads(result[0])
+            if self.use_numpy:
+                pass
+            else:
+                return self._serializer.loads(result[0])
 
     def delete(self, name: str, start_timestamp=None, end_timestamp=None):
         """
@@ -168,39 +187,67 @@ class RedisSampleTimeSeries(RedisTSBase):
                 self.delete(name)
 
     def get_slice(self, name, start_timestamp=None,
-                  end_timestamp=None, limit=None, asc=True):
+                  end_timestamp=None, asc=True, chunks_size=10000):
         """
         return a slice from redis sorted sets with timestamp pairs
 
         :param name: redis key
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
-        :param limit: int, limit the length of the result data.
         :param asc: bool, sorted as the timestamp values
+        :param chunks_size: int, yield chunk size iter data.
         :return: [(timestamp,data),...]
         """
         if asc:
             zrange_func = self.client.zrangebyscore
         else:  # desc
             zrange_func = self.client.zrevrangebyscore
+
         if start_timestamp is None:
             start_timestamp = "-inf"
         if end_timestamp is None:
             end_timestamp = "+inf"
 
-        if limit is None:
-            limit = -1
+        total = self.count(name, start_timestamp, end_timestamp)
 
-        results = zrange_func(name, min=start_timestamp,
-                              max=end_timestamp,
-                              withscores=True, start=0, num=limit)
+        if total > chunks_size:
 
-        if results:
+            split_size = int(total / chunks_size)
+
+            for i in range(split_size):
+
+                if i == 0:
+                    start = 0
+                else:
+                    start = index + 1
+
+                results = zrange_func(name, min=start_timestamp, max=end_timestamp,
+                                      withscores=True,
+                                      start=start, num=chunks_size)
+
+                if self.use_numpy:
+                    pass
+                else:
+                    yield_data = yield list(itertools.starmap(lambda data, timestamp:
+                                                              (timestamp, self._serializer.loads(data)),
+                                                              results))
+
+                    index_data = self._serializer.dumps(yield_data[-1])
+                    index = self.client.zrank(name, index_data)
+
+        else:
+
+            results = zrange_func(name, min=start_timestamp,
+                                  max=end_timestamp,
+                                  withscores=True, start=0, num=-1)
+
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
-
-            return list(itertools.starmap(lambda data, timestamp:
-                                          (timestamp, self._serializer.loads(data)),
-                                          results))
+            if self.use_numpy:
+                pass
+            else:
+                yield list(itertools.starmap(lambda data, timestamp:
+                                             (timestamp, self._serializer.loads(data)),
+                                             results))
 
     def iter_keys(self, count=None):
         """
@@ -218,5 +265,9 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param count:
         :return: iter, [(timestamp, data),...]
         """
-        for item in self.client.zscan_iter(name, count=count):
-            yield (item[1], self._serializer.loads(item[0]))
+        if self.use_numpy:
+            for item in self.client.zscan_iter(name, count=count):
+                if self.use_numpy:
+                    pass
+                else:
+                    yield (item[1], self._serializer.loads(item[0]))

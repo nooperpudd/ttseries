@@ -193,17 +193,21 @@ class RedisHashTimeSeries(RedisTSBase):
 
             self.delete(name)
 
-    def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
+    def get_slice(self, name, start_timestamp=None, end_timestamp=None,
+                  asc=True, chunks_size=10000):
         """
         return a slice from redis sorted sets with timestamp pairs
 
         :param name: redis key
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
-        :param limit: int, limit the length of the result data.
         :param asc: bool, sorted as the timestamp values
+        :param chunks_size: int,
         :return: [(timestamp,data),...]
         """
+
+        hash_key = self.hash_format.format(key=name)
+
         if asc:
             zrange_func = self.client.zrangebyscore
         else:  # desc
@@ -215,15 +219,35 @@ class RedisHashTimeSeries(RedisTSBase):
         if end_timestamp is None:
             end_timestamp = "+inf"
 
-        if limit is None:
-            limit = -1
+        total = self.count(name, start_timestamp, end_timestamp)
+        if total > chunks_size:
 
-        hash_key = self.hash_format.format(key=name)
+            split_size = int(total / chunks_size)
 
-        results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
-                                  withscores=True, start=0, num=limit)
+            for i in range(split_size):
 
-        if results_ids:
+                if i == 0:
+                    start = 0
+                else:
+                    start = index + 1
+
+                results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
+                                          withscores=True,
+                                          start=start, num=chunks_size)
+                index_data = results_ids[-1][0]
+                index = self.client.zrank(name, index_data)
+
+                ids, timestamps = list(itertools.zip_longest(*results_ids))
+                values = self.client.hmget(hash_key, *ids)
+                iter_dumps = map(self._serializer.loads, values)
+                yield list(itertools.zip_longest(timestamps, iter_dumps))
+
+
+        else:
+
+            results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
+                                      withscores=True, start=0, num=chunks_size)
+
             ids, timestamps = list(itertools.zip_longest(*results_ids))
             values = self.client.hmget(hash_key, *ids)
             iter_dumps = map(self._serializer.loads, values)

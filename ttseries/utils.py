@@ -3,6 +3,9 @@ import itertools
 
 import numpy as np
 
+from .exceptions import RedisTimeSeriesError
+
+
 
 def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
     """

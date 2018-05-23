@@ -156,6 +156,12 @@ class RedisTSBase(object):
                 finally:
                     pipe.reset()
 
+    def get_slice_mixin(self):
+        """
+        :return:
+        """
+        pass
+
     def validate_key(self, name):
         """
         validate redis key can't contains specific names
@@ -177,6 +183,7 @@ class RedisTSBase(object):
                 raise RedisTimeSeriesError("repeated timestamps:", timestamp)
             else:
                 timestamps_set.add(timestamp)
+
 
     def _add_many_validate(self, name, array_data,
                            timestamp_column_name=None,
@@ -244,20 +251,18 @@ class RedisTSBase(object):
         # validate timestamp exists
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
-
-
         if exist_length > 0:
-            #  todo split chunks
-            filter_array = self.get_slice(name, start_timestamp, end_timestamp)
 
-            if self.use_numpy:
-                pass
-            else:
+            for array in self.get_slice(name, start_timestamp, end_timestamp):
 
-                filter_timestamps, _ = itertools.zip_longest(*filter_array)
-                timestamps, _ = itertools.zip_longest(*array_data)
-                common_timestamps = set(filter_timestamps) & set(timestamps)
-                if common_timestamps:
-                    raise RedisTimeSeriesError("add duplicated timestamp into redis", common_timestamps)
+                if self.use_numpy:
+                    pass
+                else:
+
+                    filter_timestamps, _ = itertools.zip_longest(*array)
+                    timestamps, _ = itertools.zip_longest(*array_data)
+                    common_timestamps = set(filter_timestamps) & set(timestamps)
+                    if common_timestamps:
+                        raise RedisTimeSeriesError("add duplicated timestamp into redis", common_timestamps)
         else:
             return array_data
