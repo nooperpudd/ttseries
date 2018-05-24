@@ -85,14 +85,10 @@ class RedisSampleTimeSeries(RedisTSBase):
         """
         self.validate_key(name)
 
-        array = self._add_many_validate(name, array)
+        array = self._add_many_validate(name, array,
+                                        timestamp_column_name=timestamp_column_name,
+                                        timestamp_column_index=timestamp_column_index)
 
-        print(array)
-        # array[:, 1::]
-        # todo need change array dtype
-        # serializer_array = np.apply_along_axis(
-        #     lambda x: (x[0], self._serializer.dumps(x[1:].tolist())), 1, array)
-        # print(serializer_array)
         for item in ttseries.utils.chunks_numpy(array, 1000):
             with self._lock, self._pipe_acquire() as pipe:
                 pipe.watch(name)
@@ -106,12 +102,6 @@ class RedisSampleTimeSeries(RedisTSBase):
                 np.apply_along_axis(iter_numpy, 1, item)
 
                 pipe.execute()
-
-            # for inner in item:
-            #     def pipe_func(_pipe):
-            #         _pipe.zadd(name, *inner.tolist())
-
-            # self.transaction_pipe(pipe_func, watch_keys=name)
 
     def get(self, name: str, timestamp: float):
         """
@@ -187,13 +177,14 @@ class RedisSampleTimeSeries(RedisTSBase):
                 self.delete(name)
 
     def get_slice(self, name, start_timestamp=None,
-                  end_timestamp=None, asc=True, chunks_size=10000):
+                  end_timestamp=None, limit=None, asc=True, chunks_size=10000):
         """
         return a slice from redis sorted sets with timestamp pairs
 
         :param name: redis key
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
+        :param limit: int,
         :param asc: bool, sorted as the timestamp values
         :param chunks_size: int, yield chunk size iter data.
         :return: [(timestamp,data),...]
@@ -209,7 +200,10 @@ class RedisSampleTimeSeries(RedisTSBase):
             end_timestamp = "+inf"
 
         total = self.count(name, start_timestamp, end_timestamp)
-
+        # total, limit , chunk_size
+        
+        if limit is not None and total >= limit > chunks_size:
+            pass
         if total > chunks_size:
 
             split_size = int(total / chunks_size)
@@ -236,6 +230,11 @@ class RedisSampleTimeSeries(RedisTSBase):
                     index = self.client.zrank(name, index_data)
 
         else:
+
+            # if limit is not None and limit<chunks_size:
+            #     pass
+            # elif:
+
 
             results = zrange_func(name, min=start_timestamp,
                                   max=end_timestamp,

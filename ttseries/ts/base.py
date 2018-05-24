@@ -38,7 +38,8 @@ class RedisTSBase(object):
     # todo implement auto moving windows
 
     def __init__(self, redis_client, max_length=100000,
-                 transaction=True, use_numpy=False,
+                 transaction=True,
+                 use_numpy = False,
                  serializer_cls=serializers.MsgPackSerializer,
                  compressor_cls=None):
         """
@@ -52,8 +53,8 @@ class RedisTSBase(object):
         self._redis_client = redis_client
         self.max_length = max_length
         self.transaction = transaction
-        self._lock = threading.RLock()
         self.use_numpy = use_numpy
+        self._lock = threading.RLock()
 
         if issubclass(serializer_cls, serializers.BaseSerializer):
             self._serializer = serializer_cls()

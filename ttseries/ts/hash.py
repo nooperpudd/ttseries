@@ -22,6 +22,10 @@ class RedisHashTimeSeries(RedisTSBase):
     hash_format = "{key}:HASH"  # as the hash set id
     incr_format = "{key}:ID"  # as the auto increase id
 
+    def __init__(self, *args, **kwargs):
+        self.use_numpy = False
+        super().__init__(*args, **kwargs)
+
     def get(self, name, timestamp):
         """
         get one item by timestamp
@@ -194,13 +198,14 @@ class RedisHashTimeSeries(RedisTSBase):
             self.delete(name)
 
     def get_slice(self, name, start_timestamp=None, end_timestamp=None,
-                  asc=True, chunks_size=10000):
+                  limit=None, asc=True, chunks_size=10000):
         """
         return a slice from redis sorted sets with timestamp pairs
 
         :param name: redis key
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
+        :param limit: int,
         :param asc: bool, sorted as the timestamp values
         :param chunks_size: int,
         :return: [(timestamp,data),...]
