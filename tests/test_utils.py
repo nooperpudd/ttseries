@@ -1,10 +1,11 @@
 # encoding:utf-8
+import datetime
 import unittest
 
 import numpy as np
 
-from ttseries.utils import chunks
-from ttseries.utils import chunks_numpy
+from ttseries.exceptions import RepeatedValueError
+from ttseries.utils import chunks, chunks_numpy, check_array_repeat
 
 
 class ChunksTest(unittest.TestCase):
@@ -41,3 +42,14 @@ class ChunksTest(unittest.TestCase):
         result_array_3, result_array_4 = list(chunks_numpy(array_rand_2, 2))
         self.assertTrue(np.array_equal(array_3, result_array_3))
         self.assertTrue(np.array_equal(array_4, result_array_4))
+
+    def test_check_timestamp_repeat(self):
+        now = datetime.datetime.now()
+        timestamp = now.timestamp()
+        test_data = []
+        for i in range(5):
+            test_data.append((timestamp + i, i))
+        test_data.append((timestamp, 10))
+
+        with self.assertRaises(RepeatedValueError):
+            check_array_repeat(test_data)

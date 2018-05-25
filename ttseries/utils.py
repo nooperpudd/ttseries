@@ -3,21 +3,21 @@ import itertools
 
 import numpy as np
 
-from .exceptions import RedisTimeSeriesError
+from .exceptions import RepeatedValueError
 
 
-def check_timestamp_repeat(array_data):
+def check_array_repeat(array):
     """
-    :param array_data: [(timestamp,data),...]
+    :param array: [(timestamp,data),...]
     :return:
     """
-    timestamps, _ = itertools.zip_longest(*array_data)
-    timestamps_dict = {}
-    for timestamp in timestamps:
-        if timestamp in timestamps_dict:
-            raise RedisTimeSeriesError("repeated timestamps:", timestamp)
+    keys, _ = itertools.zip_longest(*array)
+    keys_dict = {}
+    for key in keys:
+        if key in keys_dict:
+            raise RepeatedValueError("repeated value:", key)
         else:
-            timestamps_dict.setdefault(timestamp)
+            keys_dict.setdefault(key)
 
 
 def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:

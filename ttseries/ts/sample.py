@@ -166,163 +166,56 @@ class RedisSampleTimeSeries(RedisTSBase):
             end_timestamp = "+inf"
 
         total = self.count(name, start_timestamp, end_timestamp)
-# <<<<<<< Updated upstream
-#         # total, limit , chunk_size
-#
-#         if limit is not None and total >= limit > chunks_size:
-#             pass
-#         if total > chunks_size:
-#
-#             split_size = int(total / chunks_size)
-#
-#             for i in range(split_size):
-#
-#                 if i == 0:
-#                     start = 0
-#                 else:
-#                     start = index + 1
-#
-#                 results = zrange_func(name, min=start_timestamp, max=end_timestamp,
-#                                       withscores=True,
-#                                       start=start, num=chunks_size)
-#
-#                 if self.use_numpy:
-#                     pass
-#                 else:
-#                     yield_data = yield list(itertools.starmap(lambda data, timestamp:
-#                                                               (timestamp, self._serializer.loads(data)),
-#                                                               results))
-#
-#                     index_data = self._serializer.dumps(yield_data[-1])
-#                     index = self.client.zrank(name, index_data)
-#
-#         else:
-#
-#             # if limit is not None and limit<chunks_size:
-#             #     pass
-#             # elif:
-#
-#             results = zrange_func(name, min=start_timestamp,
-#                                   max=end_timestamp,
-#                                   withscores=True, start=0, num=-1)
-#
-#             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
-# =======
-#
-#         def zrange_func_limit_(num_):
-#             results = zrange_func(name, min=start_timestamp, max=end_timestamp,
-#                                   withscores=True,
-#                                   start=0, num=num_)
-# >>>>>>> Stashed changes
-#             if self.use_numpy:
-#                 pass
-#             else:
-#                 yield list(itertools.starmap(lambda data, timestamp:
-#                                              (timestamp, self._serializer.loads(data)),
-#                                              results))
-#
-#         if limit is None or limit >= total:
-#             if total > chunks_size:  # iter
-#                 split_size = int(total / chunks_size)
-#
-#                 for i in range(split_size):
-#                     if i == 0:
-#                         start = 0
-#                     else:
-#                         start = index + 1
-#
-#                     results = zrange_func(name, min=start_timestamp, max=end_timestamp,
-#                                           withscores=True,
-#                                           start=start, num=chunks_size)
-#
-#                     if self.use_numpy:
-#                         pass
-#                     else:
-#                         yield_data = yield list(itertools.starmap(lambda data, timestamp:
-#                                                                   (timestamp, self._serializer.loads(data)),
-#                                                                   results))
-#
-#                         index_data = self._serializer.dumps(yield_data[-1])
-#                         index = self.client.zrank(name, index_data)
-#             else:  # get directly
-#                 # get directly limit = -1
-#                 zrange_func_limit_(num_=-1)
-#
-#         else:  # limit < total
-#
-#             if limit >= chunks_size:
-#
-#                 split_size = int(limit / chunks_size)
-#
-#                 for i in range(split_size):
-#                     if i == 0:
-#                         start = 0
-#                         num = chunks_size
-#                     elif i == split_size - 1:
-#                         start = index + 1
-#                         num = limit - chunks_size * i
-#                     else:
-#                         num = chunks_size
-#                         start = index + 1
-#
-#                     results = zrange_func(name, min=start_timestamp, max=end_timestamp,
-#                                           withscores=True,
-#                                           start=start, num=num)
-#
-#                     if self.use_numpy:
-#                         pass
-#                     else:
-#                         yield_data = yield list(itertools.starmap(lambda data, timestamp:
-#                                                                   (timestamp, self._serializer.loads(data)),
-#                                                                   results))
-#
-#                         index_data = self._serializer.dumps(yield_data[-1])
-#                         index = self.client.zrank(name, index_data)
-#
-#                 pass  # iter limit
-#             else:  # limit < chunk_size
-#                 # get directly num = limit
-#                 zrange_func_limit_(num_=limit)
 
-        # if total > chunks_size:
-        #
-        #
-        #     split_size = int(total / chunks_size)
-        #
-        #     for i in range(split_size):
-        #
-        #         if i == 0:
-        #             start = 0
-        #         else:
-        #             start = index + 1
-        #
-        #         results = zrange_func(name, min=start_timestamp, max=end_timestamp,
-        #                               withscores=True,
-        #                               start=start, num=chunks_size)
-        #
-        #         if self.use_numpy:
-        #             pass
-        #         else:
-        #             yield_data = yield list(itertools.starmap(lambda data, timestamp:
-        #                                                       (timestamp, self._serializer.loads(data)),
-        #                                                       results))
-        #
-        #             index_data = self._serializer.dumps(yield_data[-1])
-        #             index = self.client.zrank(name, index_data)
-        #
-        # else:
-        #
-        #     results = zrange_func(name, min=start_timestamp,
-        #                           max=end_timestamp,
-        #                           withscores=True, start=0, num=-1)
-        #
-        #     # [(b'\x81\xa5value\x00', 1526008483.331131),...]
-        #     if self.use_numpy:
-        #         pass
-        #     else:
-        #         yield list(itertools.starmap(lambda data, timestamp:
-        #                                      (timestamp, self._serializer.loads(data)),
-        #                                      results))
+        def zrange_func_limit_(start_, num_):
+
+            results = zrange_func(name, min=start_timestamp,
+                                  max=end_timestamp,
+                                  withscores=True,
+                                  start=start_, num=num_)
+
+            yield list(itertools.starmap(lambda data, timestamp:
+                                         (timestamp, self._serializer.loads(data)),
+                                         results))
+
+        if total > 0:
+            if limit is None or limit >= total:
+                if total > chunks_size:
+                    split = int(total / chunks_size) + 1
+
+                    for i in range(split):  # start with 0,1,2,3...
+                        if i == 0:
+                            start = 0
+                        else:
+                            start = index + 1
+
+                        yield_data = yield zrange_func_limit_(start, chunks_size)
+
+                        index_data = self._serializer.dumps(yield_data[-1])
+                        index = self.client.zrank(name, index_data)
+                else:
+                    yield zrange_func_limit_(start_=0, num_=-1)
+            else:  # limit < total
+                if limit > chunks_size:
+
+                    split = int(limit / chunks_size) + 1
+                    for i in range(split):
+                        if i == 0:
+                            start = 0
+                            num = chunks_size
+                        elif i == split - 1:  # the last
+                            start = index + 1
+                            num = limit - chunks_size * i
+                        else:
+                            num = chunks_size
+                            start = index + 1
+
+                        yield_data = yield zrange_func_limit_(start, num)
+
+                        index_data = self._serializer.dumps(yield_data[-1])
+                        index = self.client.zrank(name, index_data)
+                else:
+                    yield zrange_func_limit_(start_=0, num_=limit)
 
     def iter_keys(self, count=None):
         """

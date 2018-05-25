@@ -213,7 +213,7 @@ class RedisTSBase(object):
         # auto trim timestamps
         timestamp_pairs = self._auto_trim_array(name, timestamp_pairs)
         # check timestamp repeated
-        ttseries.utils.check_timestamp_repeat(timestamp_pairs)
+        ttseries.utils.check_array_repeat(timestamp_pairs)
         # validate timestamp exist
         self._timestamp_exist(name, timestamp_pairs)
 
