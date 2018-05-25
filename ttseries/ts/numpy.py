@@ -18,7 +18,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         super().__init__(*args, **kwargs)
         self.dtype = dtype  # numpy data dtype
 
-    def _add_many_validate(self, name, array_data,
+    def _add_many_validate(self, array,
                            timestamp_column_name=None,
                            timestamp_column_index=0):
 
@@ -33,30 +33,52 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :return:
         """
         if timestamp_column_name:
+            # sort timestamp
+            timestamp_array = array[timestamp_column_name].astype("float64")
+            array[timestamp_column_name] = timestamp_array
+            array = np.sort(array, order=[timestamp_column_name])
 
-            timestamp_array = array_data[timestamp_column_name].astype("float64")
-
-            if len(np.unique(timestamp_array)) != len(array_data):
-                raise RedisTimeSeriesError("repeated timestamps in array data")
-
-            array_data[timestamp_column_name] = timestamp_array
-
-            array_data = np.sort(array_data, order=[timestamp_column_name])
-            start_timestamp = timestamp_array.min()
-            end_timestamp = timestamp_array.max()
 
         else:
+            # sort timestamp
+            timestamp_array = array[:, timestamp_column_index].astype("float64")
+            array[:, timestamp_column_index] = timestamp_array
+            array = np.sort(array, axis=timestamp_column_index)
 
-            timestamp_array = array_data[:, timestamp_column_index].astype("float64")
+        # check repeated
+        if len(np.unique(timestamp_array)) != len(timestamp_array):
+            raise RedisTimeSeriesError("repeated timestamps in array data")
 
-            if len(np.unique(timestamp_array)) != len(timestamp_array):
-                raise RedisTimeSeriesError("repeated timestamps in array data")
+        return array
 
-            array_data[:, timestamp_column_index] = timestamp_array
+    def _timestamp_exist(self, name, array,
+                         timestamp_column_name=None,
+                         timestamp_column_index=0):
+        """
+        :param name:
+        :param data_array:
+        :return:
+        """
+        if timestamp_column_name:
+            timestamp_array = array[timestamp_column_name]
+        else:
+            timestamp_array = array[:, timestamp_column_index]
 
-            array_data = np.sort(array_data, axis=timestamp_column_index)
-            start_timestamp = timestamp_array.min()
-            end_timestamp = timestamp_array.max()
+        start_timestamp = timestamp_array.min()
+        end_timestamp = timestamp_array.max()
+
+        exist_length = self.count(name, start_timestamp, end_timestamp)
+
+        if exist_length > 0:
+
+            timestamps_dict = {item: None for item in timestamp_array}
+
+            for array in self.get_slice(name, start_timestamp, end_timestamp):
+
+                filter_timestamps, _ = itertools.zip_longest(*array)
+                for timestamp in filter_timestamps:
+                    if timestamp in timestamps_dict:
+                        raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
 
     def add_many(self, name, array: np.ndarray,
                  timestamp_column_index=0,
@@ -74,11 +96,14 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :param chunk_size:
         :return:
         """
+
         self._validate_key(name)
 
-        array = self._add_many_validate(name, array,
-                                        timestamp_column_name=timestamp_column_name,
-                                        timestamp_column_index=timestamp_column_index)
+        array = self._add_many_validate(array, timestamp_column_name, timestamp_column_index)
+        # auto trim timestamps
+        array = self._auto_trim_array(name, array)
+        # validate timestamp exist
+        self._timestamp_exist(name, array, timestamp_column_name, timestamp_column_index)
 
         for item in ttseries.utils.chunks_numpy(array, chunk_size):
             with self._lock, self._pipe_acquire() as pipe:
