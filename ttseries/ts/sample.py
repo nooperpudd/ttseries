@@ -2,8 +2,6 @@
 
 import itertools
 
-import numpy as np
-
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
 
@@ -27,7 +25,6 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     but we still could has an option to change the source code of the redis,
     let's it support some specific patch to full support time-series data.
-
     """
 
     def add(self, name: str, timestamp: float, data):
@@ -38,24 +35,22 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param data: obj
         :return: int
         """
-        data = self._serializer.dumps(data)
-
+        self._validate_key(name)
         with self._lock:
             if not self.exist_timestamp(name, timestamp):
+                data = self._serializer.dumps(data)
                 if self.length(name) == self.max_length:
                     self.client.zremrangebyrank(name, min=0, max=0)
                 return self.client.zadd(name, timestamp, data)
 
-    def add_many(self, name, timestamp_pairs, chunks_size=2000):
+    def add_many(self, name, timestamp_pairs: list, chunks_size=2000):
         """
         add large amount of data into redis sorted sets
         :param name: redis key
         :param timestamp_pairs: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
         """
-        self.validate_key(name)
-
-        timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
+        timestamp_pairs = self._add_many_validate_mixin(name, timestamp_pairs)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
             filter_data = itertools.starmap(lambda timestamp, data:
@@ -67,42 +62,6 @@ class RedisSampleTimeSeries(RedisTSBase):
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
-    def add_numpy_array(self, name, array: np.ndarray,
-                        timestamp_column_index=0,
-                        timestamp_column_name=None,
-                        chunk_size=1000):
-        """
-        array data likes:
-        >>>[[timestamp,"a","c"],
-        >>> [timestamp,"b","e"],
-        >>> [timestamp,"c","a"],...]
-        :param name:
-        :param array:
-        :param timestamp_column_index:
-        :param timestamp_column_name:
-        :param chunk_size:
-        :return:
-        """
-        self.validate_key(name)
-
-        array = self._add_many_validate(name, array,
-                                        timestamp_column_name=timestamp_column_name,
-                                        timestamp_column_index=timestamp_column_index)
-
-        for item in ttseries.utils.chunks_numpy(array, 1000):
-            with self._lock, self._pipe_acquire() as pipe:
-                pipe.watch(name)
-                pipe.multi()
-
-                def iter_numpy(arr):
-                    timestamp = arr[0]
-                    data = self._serializer.dumps(arr[1:].tolist())
-                    pipe.zadd(name, timestamp, data)
-
-                np.apply_along_axis(iter_numpy, 1, item)
-
-                pipe.execute()
-
     def get(self, name: str, timestamp: float):
         """
         get one item by timestamp
@@ -112,10 +71,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         """
         result = self.client.zrangebyscore(name, min=timestamp, max=timestamp)
         if result:
-            if self.use_numpy:
-                pass
-            else:
-                return self._serializer.loads(result[0])
+            return self._serializer.loads(result[0])
 
     def delete(self, name: str, start_timestamp=None, end_timestamp=None):
         """
@@ -148,7 +104,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param start_timestamp: float, start timestamp
         :param end_timestamp: float, end timestamp
         """
-        chunks_data = ttseries.utils.chunks(names, 10000)
+        chunks_data = ttseries.utils.chunks(names, 1000)
 
         if start_timestamp or end_timestamp:
             for chunk_keys in chunks_data:
@@ -201,7 +157,7 @@ class RedisSampleTimeSeries(RedisTSBase):
 
         total = self.count(name, start_timestamp, end_timestamp)
         # total, limit , chunk_size
-        
+
         if limit is not None and total >= limit > chunks_size:
             pass
         if total > chunks_size:
@@ -235,7 +191,6 @@ class RedisSampleTimeSeries(RedisTSBase):
             #     pass
             # elif:
 
-
             results = zrange_func(name, min=start_timestamp,
                                   max=end_timestamp,
                                   withscores=True, start=0, num=-1)
@@ -264,9 +219,6 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param count:
         :return: iter, [(timestamp, data),...]
         """
-        if self.use_numpy:
-            for item in self.client.zscan_iter(name, count=count):
-                if self.use_numpy:
-                    pass
-                else:
-                    yield (item[1], self._serializer.loads(item[0]))
+        for item in self.client.zscan_iter(name, count=count):
+            # ( timestamp, array_data)
+            yield (item[1], self._serializer.loads(item[0]))

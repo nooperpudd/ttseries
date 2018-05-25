@@ -5,9 +5,9 @@ import itertools
 import threading
 from operator import itemgetter
 
-import numpy as np
 import redis
 
+import ttseries.utils
 from ttseries import serializers
 from ttseries.exceptions import SerializerError, RedisTimeSeriesError
 
@@ -39,21 +39,18 @@ class RedisTSBase(object):
 
     def __init__(self, redis_client, max_length=100000,
                  transaction=True,
-                 use_numpy = False,
                  serializer_cls=serializers.MsgPackSerializer,
                  compressor_cls=None):
         """
         :param redis_client: redis client instance, only test with redis-py client.
         :param max_length: int, max length of data to store the time-series data.
         :param transaction: bool, to ensure all the add or delete commands can be executed atomically
-        :param use_numpy: bool, support numpy array to store and get data.
         :param serializer_cls: serializer class, serializer the data
         :param compressor_cls: compress class, compress the data
         """
         self._redis_client = redis_client
         self.max_length = max_length
         self.transaction = transaction
-        self.use_numpy = use_numpy
         self._lock = threading.RLock()
 
         if issubclass(serializer_cls, serializers.BaseSerializer):
@@ -157,13 +154,7 @@ class RedisTSBase(object):
                 finally:
                     pipe.reset()
 
-    def get_slice_mixin(self):
-        """
-        :return:
-        """
-        pass
-
-    def validate_key(self, name):
+    def _validate_key(self, name):
         """
         validate redis key can't contains specific names
         :param name:
@@ -171,99 +162,59 @@ class RedisTSBase(object):
         if ":HASH" in name or ":ID" in name:
             raise RedisTimeSeriesError("Key can't contains `:HASH`, `:ID` values.")
 
-    def repeated_array(self, array_data):
+    def _timestamp_exist(self, name, data_array):
         """
-        :param array_data: [(timestamp,data),...]
-        :return:
+        :param name:
+        :param data_array:
         """
-        timestamps, _ = itertools.zip_longest(*array_data)
-        timestamps_set = set()
+        end_timestamp = data_array[-1][0]  # max
+        start_timestamp = data_array[0][0]  # min
 
-        for timestamp in timestamps:
-            if timestamp in timestamps_set:
-                raise RedisTimeSeriesError("repeated timestamps:", timestamp)
-            else:
-                timestamps_set.add(timestamp)
+        exist_length = self.count(name, start_timestamp, end_timestamp)
 
+        if exist_length > 0:
 
-    def _add_many_validate(self, name, array_data,
-                           timestamp_column_name=None,
-                           timestamp_column_index=0):
+            timestamps_dict = {item[0]: None for item in data_array}
+
+            for array in self.get_slice(name, start_timestamp, end_timestamp):
+
+                filter_timestamps, _ = itertools.zip_longest(*array)
+                for timestamp in filter_timestamps:
+                    if timestamp in timestamps_dict:
+                        raise RedisTimeSeriesError("add duplicated timestamp into redis", common_timestamps)
+
+    def _auto_trim_array(self, name, array_data):
         """
         before to insert the data into redis,
         auto to trim the data exists in redis,
         and validate the timestamp already exist in redis
         :param name: redis key
         :param array_data: array data
-        :param timestamp_column_name: str, timestamp numpy column name
-        :param timestamp_column_index: int, timestamp numpy column index
-        :return: sorted array data
+        :return: trim array
         """
         array_length = len(array_data)
 
-        if isinstance(array_data, list):
-
-            self.repeated_array(array_data)
-
-            array_data = sorted(array_data, key=itemgetter(0))
-            end_timestamp = array_data[-1][0]  # max
-            start_timestamp = array_data[0][0]  # min
-
-        # numpy array
-        elif isinstance(array_data, np.ndarray):
-
-            if timestamp_column_name:
-
-                timestamp_array = array_data[timestamp_column_name].astype("float64")
-
-                if len(np.unique(timestamp_array)) != len(array_data):
-                    raise RedisTimeSeriesError("repeated timestamps in array data")
-
-                array_data[timestamp_column_name] = timestamp_array
-
-                array_data = np.sort(array_data, order=[timestamp_column_name])
-                start_timestamp = timestamp_array.min()
-                end_timestamp = timestamp_array.max()
-
-            else:
-
-                timestamp_array = array_data[:, timestamp_column_index].astype("float64")
-
-                if len(np.unique(timestamp_array)) != len(timestamp_array):
-                    raise RedisTimeSeriesError("repeated timestamps in array data")
-
-                array_data[:, timestamp_column_index] = timestamp_array
-
-                array_data = np.sort(array_data, axis=timestamp_column_index)
-                start_timestamp = timestamp_array.min()
-                end_timestamp = timestamp_array.max()
-        else:
-            raise RedisTimeSeriesError("nonsupport array data type")
-
         # auto trim array
-
         if array_length + self.length(name) >= self.max_length:
             trim_length = array_length + self.length(name) - self.max_length
             self.trim(name, trim_length)
 
         if array_length > self.max_length:
             array_data = array_data[array_length - self.max_length:]
+        return array_data
 
-        # validate timestamp exists
-        exist_length = self.count(name, start_timestamp, end_timestamp)
+    def _add_many_validate_mixin(self, name, timestamp_pairs):
+        """
+        :return:
+        """
+        self._validate_key(name)
 
-        if exist_length > 0:
+        timestamp_pairs = sorted(timestamp_pairs, key=itemgetter(0))
+        # auto trim timestamps
+        timestamp_pairs = self._auto_trim_array(name, timestamp_pairs)
+        # check timestamp repeated
+        ttseries.utils.check_timestamp_repeat(timestamp_pairs)
+        # validate timestamp exist
+        self._timestamp_exist(name, timestamp_pairs)
 
-            for array in self.get_slice(name, start_timestamp, end_timestamp):
-
-                if self.use_numpy:
-                    pass
-                else:
-
-                    filter_timestamps, _ = itertools.zip_longest(*array)
-                    timestamps, _ = itertools.zip_longest(*array_data)
-                    common_timestamps = set(filter_timestamps) & set(timestamps)
-                    if common_timestamps:
-                        raise RedisTimeSeriesError("add duplicated timestamp into redis", common_timestamps)
-        else:
-            return array_data
+        return timestamp_pairs
