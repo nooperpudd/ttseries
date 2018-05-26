@@ -22,6 +22,24 @@ class RedisHashTimeSeries(RedisTSBase):
     hash_format = "{key}:HASH"  # as the hash set id
     incr_format = "{key}:ID"  # as the auto increase id
 
+    def _auto_trim(self, name, key_id, hash_key):
+        """
+        auto trim the redis data  with max length in the redis keys
+        :param name: redis key
+        :param key_id:
+        :param hash_key:
+        """
+        # if current length reach the max length of the data
+        # remove oldest key store in data
+        remove_key = key_id - self.max_length
+        watch_keys = (name, hash_key)
+
+        def pipe_func(_pipe):  # trans function
+            self.client.zrem(name, remove_key)
+            self.client.hdel(hash_key, remove_key)
+
+        self.transaction_pipe(pipe_func, watch_keys)
+
     def get(self, name, timestamp):
         """
         get one item by timestamp
@@ -38,26 +56,6 @@ class RedisHashTimeSeries(RedisTSBase):
             data = self.client.hmget(hash_key, result_id)
             return self._serializer.loads(data[0])
 
-    def _auto_trim(self, name, key_id, hash_key):
-        """
-        auto trim the redis data  with max length in the redis keys
-        :param name: redis key
-        :param key_id:
-        :param hash_key:
-        """
-        # if current length reach the max length of the data
-        # remove oldest key store in data
-        remove_key = key_id - self.max_length
-
-        watch_keys = (name, hash_key)
-
-        def pipe_func(_pipe):  # trans function
-
-            self.client.zrem(name, remove_key)
-            self.client.hdel(hash_key, remove_key)
-
-        self.transaction_pipe(pipe_func, watch_keys)
-
     def add(self, name: str, timestamp: float, data) -> bool:
         """
         add one times-series data into redis
@@ -68,38 +66,30 @@ class RedisHashTimeSeries(RedisTSBase):
         :param data: object
         :return: bool
         """
-        self.validate_key(name)
-
-        dumps_data = self._serializer.dumps(data)
+        self._validate_key(name)
 
         incr_key = self.incr_format.format(key=name)  # APPL:SECOND:ID
         hash_key = self.hash_format.format(key=name)  # APPL:second:HASH
 
         if not self.exist_timestamp(name, timestamp):
 
-            key_id = self.client.incr(incr_key)  # int, key id start with 1
+            dumps_data = self._serializer.dumps(data)
 
+            key_id = self.client.incr(incr_key)  # int, key id start with 1
             # key id start with 1,2,3,4,5,6...
 
-            try:
-                dumps_dict = {key_id: dumps_data}  # { 1: values}
+            if self.length(name) == self.max_length:
+                self._auto_trim(name, key_id, hash_key)
 
-                def pipe_func(_pipe):  # trans function
-                    _pipe.zadd(name, timestamp, key_id)  # APPL:SECOND, 233444334.33, 1
-                    _pipe.hmset(hash_key, dumps_dict)  # APPL:second:HASH, {1:value}
+            dumps_dict = {key_id: dumps_data}  # { 1: values}
 
-                watch_keys = (name, hash_key)  # APPL:SECOND , APPL:second:HASH
+            def pipe_func(_pipe):  # trans function
+                _pipe.zadd(name, timestamp, key_id)  # APPL:SECOND, 233444334.33, 1
+                _pipe.hmset(hash_key, dumps_dict)  # APPL:second:HASH, {1:value}
 
-                results = self.transaction_pipe(pipe_func, watch_keys)
+            watch_keys = (name, hash_key)  # APPL:SECOND , APPL:second:HASH
 
-            except Exception as e:
-                self.client.decr(incr_key)
-                raise e
-            else:
-                if self.length(name) > self.max_length:
-                    self._auto_trim(name, key_id, hash_key)
-
-                return results
+            return self.transaction_pipe(pipe_func, watch_keys)
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
         """
@@ -150,7 +140,7 @@ class RedisHashTimeSeries(RedisTSBase):
         :param start_timestamp: float, start timestamp
         :param end_timestamp: float, end timestamp
         """
-        chunks_data = ttseries.utils.chunks(names, 10000)
+        chunks_data = ttseries.utils.chunks(names, 1000)
 
         if start_timestamp or end_timestamp:
             for chunk_keys in chunks_data:
@@ -170,7 +160,6 @@ class RedisHashTimeSeries(RedisTSBase):
         :param name: redis key
         :param length: int, length
         """
-        length = int(length)
         current_length = self.length(name)
         hash_key = self.hash_format.format(key=name)
 
@@ -181,19 +170,18 @@ class RedisHashTimeSeries(RedisTSBase):
             result_data = self.client.zrange(name=name,
                                              start=begin,
                                              end=end, desc=False)
-
-            def pipe_func(_pipe):
-                _pipe.zremrangebyrank(name, min=begin, max=end)
-                _pipe.hdel(hash_key, *result_data)
-
             if result_data:
+                def pipe_func(_pipe):
+                    _pipe.zremrangebyrank(name, min=begin, max=end)
+                    _pipe.hdel(hash_key, *result_data)
+
                 watch_keys = (name, hash_key)
                 self.transaction_pipe(pipe_func, watch_keys)
         elif length >= current_length:
-
             self.delete(name)
 
-    def get_slice(self, name, start_timestamp=None, end_timestamp=None, limit=None, asc=True):
+    def get_slice(self, name, start_timestamp=None, end_timestamp=None,
+                  limit=None, asc=True):
         """
         return a slice from redis sorted sets with timestamp pairs
 
@@ -204,24 +192,11 @@ class RedisHashTimeSeries(RedisTSBase):
         :param asc: bool, sorted as the timestamp values
         :return: [(timestamp,data),...]
         """
-        if asc:
-            zrange_func = self.client.zrangebyscore
-        else:  # desc
-            zrange_func = self.client.zrevrangebyscore
-
-        if start_timestamp is None:
-            start_timestamp = "-inf"
-
-        if end_timestamp is None:
-            end_timestamp = "+inf"
-
-        if limit is None:
-            limit = -1
 
         hash_key = self.hash_format.format(key=name)
 
-        results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
-                                  withscores=True, start=0, num=limit)
+        results_ids = self._get_slice_mixin(name, start_timestamp,
+                                            end_timestamp, limit, asc)
 
         if results_ids:
             ids, timestamps = list(itertools.zip_longest(*results_ids))
@@ -236,13 +211,13 @@ class RedisHashTimeSeries(RedisTSBase):
         :param timestamp_pairs: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
         """
-        self.validate_key(name)
+
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
-        sorted_timestamps = self._add_many_validate(name, timestamp_pairs)
+        timestamp_pairs = self._add_many_validate_mixin(name, timestamp_pairs)
 
-        chunks_data = ttseries.utils.chunks(sorted_timestamps, chunks_size)
+        chunks_data = ttseries.utils.chunks(timestamp_pairs, chunks_size)
         for chunks in chunks_data:
 
             if not self.client.exists(incr_key):
