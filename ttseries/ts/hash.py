@@ -160,7 +160,6 @@ class RedisHashTimeSeries(RedisTSBase):
         :param name: redis key
         :param length: int, length
         """
-        length = int(length)
         current_length = self.length(name)
         hash_key = self.hash_format.format(key=name)
 
@@ -171,16 +170,14 @@ class RedisHashTimeSeries(RedisTSBase):
             result_data = self.client.zrange(name=name,
                                              start=begin,
                                              end=end, desc=False)
-
-            def pipe_func(_pipe):
-                _pipe.zremrangebyrank(name, min=begin, max=end)
-                _pipe.hdel(hash_key, *result_data)
-
             if result_data:
+                def pipe_func(_pipe):
+                    _pipe.zremrangebyrank(name, min=begin, max=end)
+                    _pipe.hdel(hash_key, *result_data)
+
                 watch_keys = (name, hash_key)
                 self.transaction_pipe(pipe_func, watch_keys)
         elif length >= current_length:
-
             self.delete(name)
 
     def get_slice(self, name, start_timestamp=None, end_timestamp=None,
@@ -198,21 +195,9 @@ class RedisHashTimeSeries(RedisTSBase):
 
         hash_key = self.hash_format.format(key=name)
 
-        if asc:
-            zrange_func = self.client.zrangebyscore
-        else:  # desc
-            zrange_func = self.client.zrevrangebyscore
+        results_ids = self._get_slice_mixin(name, start_timestamp,
+                                            end_timestamp, limit, asc)
 
-        if start_timestamp is None:
-            start_timestamp = "-inf"
-        if end_timestamp is None:
-            end_timestamp = "+inf"
-
-        if limit is None:
-            limit = -1
-
-        results_ids = zrange_func(name, min=start_timestamp, max=end_timestamp,
-                                  withscores=True, start=0, num=limit)
         if results_ids:
             ids, timestamps = list(itertools.zip_longest(*results_ids))
             values = self.client.hmget(hash_key, *ids)

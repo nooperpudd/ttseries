@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from ttseries.exceptions import RepeatedValueError
-from ttseries.utils import chunks, chunks_numpy, check_array_repeat
+from ttseries.utils import chunks, chunks_numpy, check_array_repeated
 
 
 class ChunksTest(unittest.TestCase):
@@ -52,4 +52,4 @@ class ChunksTest(unittest.TestCase):
         test_data.append((timestamp, 10))
 
         with self.assertRaises(RepeatedValueError):
-            check_array_repeat(test_data)
+            check_array_repeated(test_data)

@@ -213,8 +213,36 @@ class RedisTSBase(object):
         # auto trim timestamps
         timestamp_pairs = self._auto_trim_array(name, timestamp_pairs)
         # check timestamp repeated
-        ttseries.utils.check_array_repeat(timestamp_pairs)
+        ttseries.utils.check_array_repeated(timestamp_pairs)
         # validate timestamp exist
         self._timestamp_exist(name, timestamp_pairs)
 
         return timestamp_pairs
+
+    def _get_slice_mixin(self, name, start_timestamp=None,
+                         end_timestamp=None, limit=None, asc=True):
+        """
+        :param name:
+        :param start_timestamp:
+        :param end_timestamp:
+        :param limit:
+        :param asc:
+        :return:
+        """
+        if asc:
+            zrange_func = self.client.zrangebyscore
+        else:  # desc
+            zrange_func = self.client.zrevrangebyscore
+
+        if start_timestamp is None:
+            start_timestamp = "-inf"
+        if end_timestamp is None:
+            end_timestamp = "+inf"
+
+        if limit is None:
+            limit = -1
+
+        return zrange_func(name, min=start_timestamp,
+                           max=end_timestamp,
+                           withscores=True,
+                           start=0, num=limit)

@@ -114,14 +114,13 @@ class RedisSampleTimeSeries(RedisTSBase):
             for chunk_keys in chunks_data:
                 self.client.delete(*chunk_keys)
 
-    def trim(self, name, length):
+    def trim(self, name: str, length: int):
         """
         trim the redis sorted sets as the length of the data.
         trim the data with timestamp as the asc
         :param name: redis key
         :param length: int, length
         """
-        length = int(length)
         current_length = self.length(name)
 
         with self._lock:
@@ -144,23 +143,9 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param asc: bool, sorted as the timestamp values
         :return: [(timestamp,data),...]
         """
-        if asc:
-            zrange_func = self.client.zrangebyscore
-        else:  # desc
-            zrange_func = self.client.zrevrangebyscore
 
-        if start_timestamp is None:
-            start_timestamp = "-inf"
-        if end_timestamp is None:
-            end_timestamp = "+inf"
-
-        if limit is None:
-            limit = -1
-
-        results = zrange_func(name, min=start_timestamp,
-                              max=end_timestamp,
-                              withscores=True,
-                              start=0, num=limit)
+        results = self._get_slice_mixin(name, start_timestamp,
+                                        end_timestamp, limit, asc)
 
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]

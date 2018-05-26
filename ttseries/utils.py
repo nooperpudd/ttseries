@@ -6,10 +6,13 @@ import numpy as np
 from .exceptions import RepeatedValueError
 
 
-def check_array_repeat(array):
+def check_array_repeated(array):
     """
+    [(key,value),....]
+    check array repeated keys, if exist repeated keys
+    will raise  RepeatedValueError
     :param array: [(timestamp,data),...]
-    :return:
+    :raise RepeatedValueError
     """
     keys, _ = itertools.zip_longest(*array)
     keys_dict = {}
