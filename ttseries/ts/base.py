@@ -162,23 +162,23 @@ class RedisTSBase(object):
         if ":HASH" in name or ":ID" in name:
             raise RedisTimeSeriesError("Key can't contains `:HASH`, `:ID` values.")
 
-    def _timestamp_exist(self, name, data_array):
+    def _timestamp_exist(self, name, array):
         """
         :param name:
         :param data_array:
         """
-        end_timestamp = data_array[-1][0]  # max
-        start_timestamp = data_array[0][0]  # min
+        end_timestamp = array[-1][0]  # max
+        start_timestamp = array[0][0]  # min
 
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:
 
-            timestamps_dict = {item[0]: None for item in data_array}
+            timestamps_dict = {item[0]: None for item in array}
 
-            array = self.get_slice(name, start_timestamp, end_timestamp)
+            data_array = self.get_slice(name, start_timestamp, end_timestamp)
 
-            filter_timestamps, _ = itertools.zip_longest(*array)
+            filter_timestamps, _ = itertools.zip_longest(*data_array)
             for timestamp in filter_timestamps:
                 if timestamp in timestamps_dict:
                     raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)

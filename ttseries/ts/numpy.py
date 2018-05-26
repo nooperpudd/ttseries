@@ -64,8 +64,6 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         """
         :param name:
         :param array:
-        :param timestamp_column_name:
-        :param timestamp_column_index:
         :return:
         """
         if self.dtype:
