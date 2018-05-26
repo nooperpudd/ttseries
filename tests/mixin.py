@@ -34,7 +34,6 @@ class Mixin(object):
                 self.time_series.add(key, timestamp, item)
         return keys
 
-
     def test_assert_key_validate(self):
 
         with self.assertRaises(RedisTimeSeriesError):

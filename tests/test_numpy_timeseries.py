@@ -15,12 +15,19 @@ class RedisNumpyTSTestMixin(object):
     def test_get_slice(self):
         key = "AAPL:SECOND"
         array = self.prepare_numpy_data(10)
-
         self.time_series.add_many(key, array)
 
         results = self.time_series.get_slice(key)
 
         numpy.testing.assert_array_equal(results, array)
+
+    def test_iter(self):
+        key = "AAPL:SECOND"
+        data_array = self.prepare_numpy_data(10)
+        self.time_series.add_many(key, data_array)
+
+        for array in self.time_series.iter(key):
+            self.assertTrue(array in data_array)
 
 
 class RedisNumpyTSTest(unittest.TestCase, RedisNumpyTSTestMixin):

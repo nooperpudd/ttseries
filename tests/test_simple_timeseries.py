@@ -41,5 +41,6 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
 
         for key in rest_keys:
             result = self.time_series.get_slice(key)
+
             self.assertListEqual(data_list, result)
 
