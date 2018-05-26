@@ -80,9 +80,13 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
             timestamps_dict = {item: None for item in timestamp_array}
 
-            array = self.get_slice(name, start_timestamp, end_timestamp)
+            filer_array = self.get_slice(name, start_timestamp, end_timestamp)
 
-            filter_timestamps, _ = itertools.zip_longest(*array)
+            if self.dtype:
+                filter_timestamps = filer_array[self.timestamp_column_name]
+            else:
+                filter_timestamps = filer_array[:, self.timestamp_column_index]
+
             for timestamp in filter_timestamps:
                 if timestamp in timestamps_dict:
                     raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)

@@ -11,7 +11,6 @@ from ttseries import RedisNumpyTimeSeries
 class RedisNumpyTSTestMixin(object):
     """
     """
-
     def test_get_slice(self):
         key = "AAPL:SECOND"
         array = self.prepare_numpy_data(10)
