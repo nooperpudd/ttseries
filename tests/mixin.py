@@ -1,5 +1,3 @@
-import numpy as np
-
 from ttseries.exceptions import RedisTimeSeriesError
 
 
