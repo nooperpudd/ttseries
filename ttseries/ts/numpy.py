@@ -23,11 +23,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                            timestamp_column_index=0):
 
         """
-        :param timestamp_column_name: str, timestamp numpy column name
-        :param timestamp_column_index: int, timestamp numpy column index
-
-        :param name:
-        :param array_data:
+        :param array:
         :param timestamp_column_name:
         :param timestamp_column_index:
         :return:
@@ -37,7 +33,6 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
             timestamp_array = array[timestamp_column_name].astype("float64")
             array[timestamp_column_name] = timestamp_array
             array = np.sort(array, order=[timestamp_column_name])
-
 
         else:
             # sort timestamp
@@ -56,7 +51,9 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                          timestamp_column_index=0):
         """
         :param name:
-        :param data_array:
+        :param array:
+        :param timestamp_column_name:
+        :param timestamp_column_index:
         :return:
         """
         if timestamp_column_name:
@@ -73,12 +70,12 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
             timestamps_dict = {item: None for item in timestamp_array}
 
-            for array in self.get_slice(name, start_timestamp, end_timestamp):
+            array = self.get_slice(name, start_timestamp, end_timestamp)
 
-                filter_timestamps, _ = itertools.zip_longest(*array)
-                for timestamp in filter_timestamps:
-                    if timestamp in timestamps_dict:
-                        raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
+            filter_timestamps, _ = itertools.zip_longest(*array)
+            for timestamp in filter_timestamps:
+                if timestamp in timestamps_dict:
+                    raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
 
     def add_many(self, name, array: np.ndarray,
                  timestamp_column_index=0,
@@ -146,7 +143,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                 yield np.array(array, dtype=self.dtype)
 
     def get_slice(self, name, start_timestamp=None,
-                  end_timestamp=None, limit=None, asc=True, chunks_size=10000):
+                  end_timestamp=None, limit=None, asc=True):
         """
         return a slice from redis sorted sets with timestamp pairs
 
@@ -155,7 +152,6 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :param end_timestamp: end timestamp
         :param limit: int,
         :param asc: bool, sorted as the timestamp values
-        :param chunks_size: int, yield chunk size iter data.
         :return: [(timestamp,data),...]
         """
         if asc:
@@ -168,50 +164,12 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         if end_timestamp is None:
             end_timestamp = "+inf"
 
-        total = self.count(name, start_timestamp, end_timestamp)
-        # total, limit , chunk_size
+        if limit is None:
+            limit = -1
 
-        if limit is not None and total >= limit > chunks_size:
+        results = zrange_func(name, min=start_timestamp, max=end_timestamp,
+                              withscores=True,
+                              start=0, num=limit)
+
+        if results:
             pass
-        if total > chunks_size:
-
-            split_size = int(total / chunks_size)
-
-            for i in range(split_size):
-
-                if i == 0:
-                    start = 0
-                else:
-                    start = index + 1
-
-                results = zrange_func(name, min=start_timestamp, max=end_timestamp,
-                                      withscores=True,
-                                      start=start, num=chunks_size)
-
-                if self.use_numpy:
-                    pass
-                else:
-                    yield_data = yield list(itertools.starmap(lambda data, timestamp:
-                                                              (timestamp, self._serializer.loads(data)),
-                                                              results))
-
-                    index_data = self._serializer.dumps(yield_data[-1])
-                    index = self.client.zrank(name, index_data)
-
-        else:
-
-            # if limit is not None and limit<chunks_size:
-            #     pass
-            # elif:
-
-            results = zrange_func(name, min=start_timestamp,
-                                  max=end_timestamp,
-                                  withscores=True, start=0, num=-1)
-
-            # [(b'\x81\xa5value\x00', 1526008483.331131),...]
-            if self.use_numpy:
-                pass
-            else:
-                yield list(itertools.starmap(lambda data, timestamp:
-                                             (timestamp, self._serializer.loads(data)),
-                                             results))

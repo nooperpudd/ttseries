@@ -133,26 +133,15 @@ class RedisSampleTimeSeries(RedisTSBase):
                 self.delete(name)
 
     def get_slice(self, name, start_timestamp=None,
-                  end_timestamp=None, limit=None, asc=True, chunks_size=10000):
+                  end_timestamp=None, limit=None, asc=True):
         """
         return a slice from redis sorted sets with timestamp pairs
-
-        chunk_size>=total>=limit  -> set limit = num
-        total>limit>chunk_size -> set limit = num, iter data
-        total>chunk_size>limit -> set limit = num
-
-
-        limit>total>chunk_size -> total, set limit = -1
-        limit>chunk_size>total -> total, set limit = -1  = > limit > total
-        chunk_size>limit>total -> total, set limit = -1
-
 
         :param name: redis key
         :param start_timestamp: start timestamp
         :param end_timestamp: end timestamp
-        :param limit: int,
+        :param limit: int, limit the length of the result data.
         :param asc: bool, sorted as the timestamp values
-        :param chunks_size: int, yield chunk size iter data.
         :return: [(timestamp,data),...]
         """
         if asc:
@@ -165,57 +154,19 @@ class RedisSampleTimeSeries(RedisTSBase):
         if end_timestamp is None:
             end_timestamp = "+inf"
 
-        total = self.count(name, start_timestamp, end_timestamp)
+        if limit is None:
+            limit = -1
 
-        def zrange_func_limit_(start_, num_):
+        results = zrange_func(name, min=start_timestamp,
+                              max=end_timestamp,
+                              withscores=True,
+                              start=0, num=limit)
 
-            results = zrange_func(name, min=start_timestamp,
-                                  max=end_timestamp,
-                                  withscores=True,
-                                  start=start_, num=num_)
-
-            yield list(itertools.starmap(lambda data, timestamp:
-                                         (timestamp, self._serializer.loads(data)),
-                                         results))
-
-        if total > 0:
-            if limit is None or limit >= total:
-                if total > chunks_size:
-                    split = int(total / chunks_size) + 1
-
-                    for i in range(split):  # start with 0,1,2,3...
-                        if i == 0:
-                            start = 0
-                        else:
-                            start = index + 1
-
-                        yield_data = yield zrange_func_limit_(start, chunks_size)
-
-                        index_data = self._serializer.dumps(yield_data[-1])
-                        index = self.client.zrank(name, index_data)
-                else:
-                    yield zrange_func_limit_(start_=0, num_=-1)
-            else:  # limit < total
-                if limit > chunks_size:
-
-                    split = int(limit / chunks_size) + 1
-                    for i in range(split):
-                        if i == 0:
-                            start = 0
-                            num = chunks_size
-                        elif i == split - 1:  # the last
-                            start = index + 1
-                            num = limit - chunks_size * i
-                        else:
-                            num = chunks_size
-                            start = index + 1
-
-                        yield_data = yield zrange_func_limit_(start, num)
-
-                        index_data = self._serializer.dumps(yield_data[-1])
-                        index = self.client.zrank(name, index_data)
-                else:
-                    yield zrange_func_limit_(start_=0, num_=limit)
+        if results:
+            # [(b'\x81\xa5value\x00', 1526008483.331131),...]
+            return list(itertools.starmap(lambda data, timestamp:
+                                          (timestamp, self._serializer.loads(data)),
+                                          results))
 
     def iter_keys(self, count=None):
         """

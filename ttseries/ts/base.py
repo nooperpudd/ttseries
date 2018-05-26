@@ -176,12 +176,12 @@ class RedisTSBase(object):
 
             timestamps_dict = {item[0]: None for item in data_array}
 
-            for array in self.get_slice(name, start_timestamp, end_timestamp):
+            array = self.get_slice(name, start_timestamp, end_timestamp)
 
-                filter_timestamps, _ = itertools.zip_longest(*array)
-                for timestamp in filter_timestamps:
-                    if timestamp in timestamps_dict:
-                        raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
+            filter_timestamps, _ = itertools.zip_longest(*array)
+            for timestamp in filter_timestamps:
+                if timestamp in timestamps_dict:
+                    raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
 
     def _auto_trim_array(self, name, array_data):
         """
