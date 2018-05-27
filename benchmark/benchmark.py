@@ -37,7 +37,7 @@ class InitData(object):
             results.append((self.timestamp + i, [i + 1, "A"]))
         return results
 
-    def prepare_array(self, length):
+    def prepare_numpy_array(self, length):
         results = []
         for i in range(length):
             results.append((self.timestamp + i, i))
@@ -65,8 +65,24 @@ def simple_time_series():
     series.flush()
 
 
+@pytest.fixture()
+def numpy_timeseries():
+    redis_client = redis.StrictRedis()
+    series = ttseries.RedisNumpyTimeSeries(redis_client)
+    yield series
+    series.flush()
+
+
+@pytest.fixture()
+def hash_timeseries():
+    redis_client = redis.StrictRedis()
+    series = ttseries.RedisHashTimeSeries(redis_client, serializer_cls=DumpySerializer)
+    yield series
+    series.flush()
+
+
 @pytest.mark.usefixtures("simple_timeseries_dumpy")
-@pytest.mark.benchmark(group="simple", disable_gc=True)
+@pytest.mark.benchmark(group="simple_dumpy", disable_gc=True)
 @pytest.mark.parametrize('data', [init_data.prepare_data(1000),
                                   init_data.prepare_data(10000),
                                   init_data.prepare_data(100000)])
@@ -80,7 +96,7 @@ def test_add_simple_timeseries_without_serializer(simple_timeseries_dumpy,
 
 
 @pytest.mark.usefixtures("simple_timeseries_dumpy")
-@pytest.mark.benchmark(group="simple", disable_gc=True)
+@pytest.mark.benchmark(group="simple_dumpy", disable_gc=True)
 @pytest.mark.parametrize("length", [1000, 10000, 100000])
 def test_get_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
                                                 benchmark,
@@ -92,6 +108,21 @@ def test_get_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
     def bench():
         simple_timeseries_dumpy.get_slice(key, init_data.timestamp,
                                           limit=length)
+
+
+@pytest.mark.usefixtures("simple_timeseries_dumpy")
+@pytest.mark.benchmark(group="simple_dumpy", disable_gc=True)
+@pytest.mark.parametrize("length", [1000, 10000, 100000])
+def test_iter_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
+                                                 benchmark,
+                                                 length):
+    simple_timeseries_dumpy.add_many(key,
+                                     init_data.prepare_data(length))
+
+    @benchmark
+    def bench():
+        for item in simple_timeseries_dumpy.iter(key):
+            pass
 
 
 @pytest.mark.usefixtures("simple_time_series")
@@ -120,31 +151,58 @@ def test_get_simple_timeseries_serializer(simple_time_series,
         simple_time_series.get_slice(key, init_data.timestamp,
                                      limit=length)
 
-# @benchmark
-# def test_simple_timeseries_serializer():
-#     pass
-#
-# @benchmark
-# def test_simple_timeseries_with_compress():
-#     pass
-#
-# @benchmark
-# def test_simple_timeseries_with_numpy():
-#     pass
-#
-# @benchmark
-# def test_hash_timeseries_without_serializer():
-#     pass
-#
-# @benchmark
-# def test_hash_timeseries_serializer():
-#     pass
-#
-# @benchmark
-# def test_hash_timeseries_with_compress():
-#     pass
-#
-# @benchmark
-# def test_hash_timeseries_with_numpy():
-#     pass
-#
+
+@pytest.mark.usefixtures("numpy_timeseries")
+@pytest.mark.benchmark(group="numpy", disable_gc=True)
+@pytest.mark.parametrize("length", [1000, 10000, 100000])
+def test_get_numpy_timeseries_serializer(numpy_timeseries,
+                                         benchmark,
+                                         length):
+    numpy_timeseries.add_many(key,
+                              init_data.prepare_numpy_array(length))
+
+    @benchmark
+    def bench():
+        numpy_timeseries.get_slice(key, init_data.timestamp)
+
+
+@pytest.mark.usefixtures("numpy_timeseries")
+@pytest.mark.benchmark(group="numpy", disable_gc=True)
+@pytest.mark.parametrize('data', [init_data.prepare_numpy_array(1000),
+                                  init_data.prepare_numpy_array(10000),
+                                  init_data.prepare_numpy_array(100000)])
+def test_add_numpy_timeseries_serializer(numpy_timeseries,
+                                         benchmark,
+                                         data):
+    @benchmark
+    def bench():
+        numpy_timeseries.add_many(name=key, array=data)
+        numpy_timeseries.flush()
+
+
+@pytest.mark.usefixtures("hash_timeseries")
+@pytest.mark.benchmark(group="hash", disable_gc=True)
+@pytest.mark.parametrize("length", [1000, 10000, 100000])
+def test_get_hash_timeseries_without_serializer(hash_timeseries,
+                                                benchmark,
+                                                length):
+    hash_timeseries.add_many(key,
+                             init_data.prepare_data(length))
+
+    @benchmark
+    def bench():
+        hash_timeseries.get_slice(key, init_data.timestamp)
+
+
+@pytest.mark.usefixtures("hash_timeseries")
+@pytest.mark.benchmark(group="hash", disable_gc=True)
+@pytest.mark.parametrize('data', [init_data.prepare_data(1000),
+                                  init_data.prepare_data(10000),
+                                  init_data.prepare_data(100000)])
+def test_add_hash_timeseries_without_serializer(hash_timeseries,
+                                                benchmark,
+                                                data):
+    @benchmark
+    def bench():
+        hash_timeseries.add_many(name=key, array=data)
+        hash_timeseries.flush()
