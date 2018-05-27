@@ -3,7 +3,6 @@
 import itertools
 
 import ttseries.utils
-from ttseries.exceptions import RedisTimeSeriesError
 from ttseries.ts.base import RedisTSBase
 
 
@@ -49,9 +48,7 @@ class RedisHashTimeSeries(RedisTSBase):
         """
         hash_key = self.hash_format.format(key=name)
 
-        result_id = self.client.zrangebyscore(name,
-                                              min=timestamp,
-                                              max=timestamp)
+        result_id = self.client.zrangebyscore(name, min=timestamp, max=timestamp)
         if result_id:
             data = self.client.hmget(hash_key, result_id)
             return self._serializer.loads(data[0])
@@ -269,8 +266,4 @@ class RedisHashTimeSeries(RedisTSBase):
 
         for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
                                                                  self.client.hscan_iter(name=hash_key)):
-
-            if int(timestamp_pairs[0]) == int(hash_pairs[0]):
-                yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
-            else:
-                raise RedisTimeSeriesError("Redis time-series value-pairs error")
+            yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))

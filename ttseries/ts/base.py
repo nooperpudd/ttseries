@@ -37,8 +37,7 @@ class RedisTSBase(object):
     # todo support parllizem and multi threading
     # todo implement auto moving windows
 
-    def __init__(self, redis_client, max_length=100000,
-                 transaction=True,
+    def __init__(self, redis_client, max_length=100000, transaction=True,
                  serializer_cls=serializers.MsgPackSerializer,
                  compressor_cls=None):
         """
@@ -165,7 +164,7 @@ class RedisTSBase(object):
     def _timestamp_exist(self, name, array):
         """
         :param name:
-        :param data_array:
+        :param array: already sorted array list
         """
         end_timestamp = array[-1][0]  # max
         start_timestamp = array[0][0]  # min
@@ -205,6 +204,9 @@ class RedisTSBase(object):
 
     def _add_many_validate_mixin(self, name, timestamp_pairs):
         """
+        validate keys
+        trim the array with max length
+        check array timestamp repeated
         :return:
         """
         self._validate_key(name)
