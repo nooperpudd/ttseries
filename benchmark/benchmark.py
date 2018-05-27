@@ -91,7 +91,7 @@ def test_add_simple_timeseries_without_serializer(simple_timeseries_dumpy,
                                                   data):
     @benchmark
     def bench():
-        simple_timeseries_dumpy.add_many(name=key, timestamp_pairs=data)
+        simple_timeseries_dumpy.add_many(name=key, array=data)
         simple_timeseries_dumpy.flush()
 
 
@@ -106,8 +106,7 @@ def test_get_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
 
     @benchmark
     def bench():
-        simple_timeseries_dumpy.get_slice(key, init_data.timestamp,
-                                          limit=length)
+        simple_timeseries_dumpy.get_slice(key)
 
 
 @pytest.mark.usefixtures("simple_timeseries_dumpy")
@@ -116,8 +115,7 @@ def test_get_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
 def test_iter_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
                                                  benchmark,
                                                  length):
-    simple_timeseries_dumpy.add_many(key,
-                                     init_data.prepare_data(length))
+    simple_timeseries_dumpy.add_many(key,init_data.prepare_data(length))
 
     @benchmark
     def bench():
@@ -133,7 +131,7 @@ def test_iter_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
 def test_simple_timeseries_serializer(simple_time_series, benchmark, data):
     @benchmark
     def bench():
-        simple_time_series.add_many(name=key, timestamp_pairs=data)
+        simple_time_series.add_many(name=key, array=data)
         simple_time_series.flush()
 
 
@@ -148,8 +146,7 @@ def test_get_simple_timeseries_serializer(simple_time_series,
 
     @benchmark
     def bench():
-        simple_time_series.get_slice(key, init_data.timestamp,
-                                     limit=length)
+        simple_time_series.get_slice(key)
 
 
 @pytest.mark.usefixtures("numpy_timeseries")
@@ -163,7 +160,7 @@ def test_get_numpy_timeseries_serializer(numpy_timeseries,
 
     @benchmark
     def bench():
-        numpy_timeseries.get_slice(key, init_data.timestamp)
+        numpy_timeseries.get_slice(key)
 
 
 @pytest.mark.usefixtures("numpy_timeseries")
@@ -191,7 +188,7 @@ def test_get_hash_timeseries_without_serializer(hash_timeseries,
 
     @benchmark
     def bench():
-        hash_timeseries.get_slice(key, init_data.timestamp)
+        hash_timeseries.get_slice(key)
 
 
 @pytest.mark.usefixtures("hash_timeseries")
