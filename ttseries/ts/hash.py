@@ -201,18 +201,18 @@ class RedisHashTimeSeries(RedisTSBase):
             iter_dumps = map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
 
-    def add_many(self, name, timestamp_pairs, chunks_size=2000):
+    def add_many(self, name, array: list, chunks_size=2000):
         """
         add large amount of data into redis sorted sets
         :param name: redis key
-        :param timestamp_pairs: data pairs, [("timestamp",data)...]
+        :param array: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
         """
 
         incr_key = self.incr_format.format(key=name)
         hash_key = self.hash_format.format(key=name)
 
-        timestamp_pairs = self._add_many_validate_mixin(name, timestamp_pairs)
+        timestamp_pairs = self._add_many_validate_mixin(name, array)
 
         chunks_data = ttseries.utils.chunks(timestamp_pairs, chunks_size)
         for chunks in chunks_data:

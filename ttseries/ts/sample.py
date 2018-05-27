@@ -43,14 +43,14 @@ class RedisSampleTimeSeries(RedisTSBase):
                     self.client.zremrangebyrank(name, min=0, max=0)
                 return self.client.zadd(name, timestamp, data)
 
-    def add_many(self, name, timestamp_pairs: list, chunks_size=2000):
+    def add_many(self, name, array: list, chunks_size=2000):
         """
         add large amount of data into redis sorted sets
         :param name: redis key
-        :param timestamp_pairs: data pairs, [("timestamp",data)...]
+        :param array: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
         """
-        timestamp_pairs = self._add_many_validate_mixin(name, timestamp_pairs)
+        timestamp_pairs = self._add_many_validate_mixin(name, array)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
             filter_data = itertools.starmap(lambda timestamp, data:
