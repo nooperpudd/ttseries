@@ -25,7 +25,6 @@ class RedisSampleTimeSeries(RedisTSBase):
 
     but we still could has an option to change the source code of the redis,
     let's it support some specific patch to full support time-series data.
-
     """
 
     def add(self, name: str, timestamp: float, data):
@@ -36,24 +35,22 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param data: obj
         :return: int
         """
-        data = self._serializer.dumps(data)
-
+        self._validate_key(name)
         with self._lock:
             if not self.exist_timestamp(name, timestamp):
+                data = self._serializer.dumps(data)
                 if self.length(name) == self.max_length:
                     self.client.zremrangebyrank(name, min=0, max=0)
                 return self.client.zadd(name, timestamp, data)
 
-    def add_many(self, name, timestamp_pairs, chunks_size=2000):
+    def add_many(self, name, timestamp_pairs: list, chunks_size=2000):
         """
         add large amount of data into redis sorted sets
         :param name: redis key
         :param timestamp_pairs: data pairs, [("timestamp",data)...]
         :param chunks_size: split data into chunk, optimize for redis pipeline
         """
-        self.validate_key(name)
-
-        timestamp_pairs = self._add_many_validate(name, timestamp_pairs)
+        timestamp_pairs = self._add_many_validate_mixin(name, timestamp_pairs)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
             filter_data = itertools.starmap(lambda timestamp, data:
@@ -107,7 +104,7 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param start_timestamp: float, start timestamp
         :param end_timestamp: float, end timestamp
         """
-        chunks_data = ttseries.utils.chunks(names, 10000)
+        chunks_data = ttseries.utils.chunks(names, 1000)
 
         if start_timestamp or end_timestamp:
             for chunk_keys in chunks_data:
@@ -117,14 +114,13 @@ class RedisSampleTimeSeries(RedisTSBase):
             for chunk_keys in chunks_data:
                 self.client.delete(*chunk_keys)
 
-    def trim(self, name, length):
+    def trim(self, name: str, length: int):
         """
         trim the redis sorted sets as the length of the data.
         trim the data with timestamp as the asc
         :param name: redis key
         :param length: int, length
         """
-        length = int(length)
         current_length = self.length(name)
 
         with self._lock:
@@ -147,25 +143,12 @@ class RedisSampleTimeSeries(RedisTSBase):
         :param asc: bool, sorted as the timestamp values
         :return: [(timestamp,data),...]
         """
-        if asc:
-            zrange_func = self.client.zrangebyscore
-        else:  # desc
-            zrange_func = self.client.zrevrangebyscore
-        if start_timestamp is None:
-            start_timestamp = "-inf"
-        if end_timestamp is None:
-            end_timestamp = "+inf"
 
-        if limit is None:
-            limit = -1
-
-        results = zrange_func(name, min=start_timestamp,
-                              max=end_timestamp,
-                              withscores=True, start=0, num=limit)
+        results = self._get_slice_mixin(name, start_timestamp,
+                                        end_timestamp, limit, asc)
 
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
-
             return list(itertools.starmap(lambda data, timestamp:
                                           (timestamp, self._serializer.loads(data)),
                                           results))
@@ -187,4 +170,5 @@ class RedisSampleTimeSeries(RedisTSBase):
         :return: iter, [(timestamp, data),...]
         """
         for item in self.client.zscan_iter(name, count=count):
+            # ( timestamp, array_data)
             yield (item[1], self._serializer.loads(item[0]))
