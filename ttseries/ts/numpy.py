@@ -1,3 +1,5 @@
+# encoding:utf-8
+import copy
 import itertools
 
 import numpy as np
@@ -8,6 +10,10 @@ from .sample import RedisSampleTimeSeries
 
 
 class RedisNumpyTimeSeries(RedisSampleTimeSeries):
+    """
+    Numpy TimeSeries support Numpy array with dtype or
+    just assign the timestamp column index
+    """
 
     def __init__(self, redis_client, max_length=100000,
                  dtype=None,
@@ -15,9 +21,11 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                  timestamp_column_index=0,
                  *args, **kwargs):
         """
-        :param dtype: numpy dtype,
-        :param timestamp_column_name:
-        :param timestamp_column_index:
+        :param redis_client:
+        :param max_length:
+        :param dtype: numpy.dtype, if set the dtype and timestamp_column_name can't be None
+        :param timestamp_column_name: timestamp column name
+        :param timestamp_column_index: timestamp column index
         :param args:
         :param kwargs:
         """
@@ -31,25 +39,26 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         if dtype:
             self.dtype = np.dtype(dtype)
             self.timestamp_column_name = timestamp_column_name
+
+            self.names = list(self.dtype.names)
+            self.timestamp_names_index = self.names.index(timestamp_column_name)
         else:
             self.dtype = None
 
         self.timestamp_column_index = timestamp_column_index
 
     def _add_many_validate(self, array):
-
         """
+        sorted timestamp and check exist repeated timestamp
         :param array:
         :return:
         """
+        # sort timestamp
         if self.dtype:
-            # sort timestamp
             timestamp_array = array[self.timestamp_column_name].astype("float64")
             array[self.timestamp_column_name] = timestamp_array
             array = np.sort(array, order=[self.timestamp_column_name])
-
         else:
-            # sort timestamp
             timestamp_array = array[:, self.timestamp_column_index].astype("float64")
             array[:, self.timestamp_column_index] = timestamp_array
             array = np.sort(array, axis=self.timestamp_column_index)
@@ -93,16 +102,14 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
     def add_many(self, name, array: np.ndarray, chunk_size=1000):
         """
-        array data likes:
+        add large amount of numpy array into redis
         >>>[[timestamp,"a","c"],
         >>> [timestamp,"b","e"],
         >>> [timestamp,"c","a"],...]
-        :param name:
-        :param array:
-        :param chunk_size:
-        :return:
+        :param name: redis key
+        :param array: numpy.ndarray
+        :param chunk_size: int, split data into chunk, optimize for redis pipeline
         """
-
         self._validate_key(name)
 
         array = self._add_many_validate(array)
@@ -117,7 +124,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                 pipe.multi()
 
                 if self.dtype:
-                    names = list(chunk_array.dtype.names)
+                    names = copy.deepcopy(self.names)
                     names.remove(self.timestamp_column_name)
 
                     for row in chunk_array:
@@ -141,6 +148,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
     def get(self, name: str, timestamp: float):
         """
+        get one item by timestamp
         :param name:
         :param timestamp:
         :return: numpy.ndarray
@@ -152,10 +160,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                 data.insert(self.timestamp_column_index, timestamp)
                 return np.array(data)
             else:
-                names = list(self.dtype.names)
-                timestamp_index = names.index(self.timestamp_column_name)
-                data.insert(timestamp_index, timestamp)
-
+                data.insert(self.timestamp_names_index, timestamp)
                 return np.array(tuple(data), dtype=self.dtype)
 
     def iter(self, name, count=None):
@@ -170,17 +175,15 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                 data.insert(self.timestamp_column_index, timestamp)
                 yield np.array(data)
         else:
-            names = list(self.dtype.names)
-            timestamp_index = names.index(self.timestamp_column_name)
 
             for timestamp, data in super().iter(name, count):
-                data.insert(timestamp_index, timestamp)
+                data.insert(self.timestamp_names_index, timestamp)
                 yield np.array(tuple(data), dtype=self.dtype)
 
     def get_slice(self, name, start_timestamp=None,
                   end_timestamp=None, limit=None, asc=True):
         """
-        return a slice from redis sorted sets with timestamp pairs
+        return a slice numpy array from redis sorted sets
 
         :param name: redis key
         :param start_timestamp: start timestamp
@@ -196,22 +199,21 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
-            def apply_numpy_index(serializer_data, timestamp):
-                data = self._serializer.loads(serializer_data)
-                data.insert(self.timestamp_column_index, timestamp)
-                return data
-
-            def apply_numpy_column(serializer_data, timestamp):
-                data = self._serializer.loads(serializer_data)
-                data.insert(timestamp_index, timestamp)
-                return tuple(data)
-
             if self.dtype is None:
+
+                def apply_numpy_index(serializer_data, timestamp):
+                    data = self._serializer.loads(serializer_data)
+                    data.insert(self.timestamp_column_index, timestamp)
+                    return data
+
                 values = itertools.starmap(apply_numpy_index, results)
                 return np.array(list(values))
 
             else:
-                names = list(self.dtype.names)
-                timestamp_index = names.index(self.timestamp_column_name)
+                def apply_numpy_column(serializer_data, timestamp):
+                    data = self._serializer.loads(serializer_data)
+                    data.insert(self.timestamp_names_index, timestamp)
+                    return tuple(data)
+
                 values = itertools.starmap(apply_numpy_column, results)
                 return np.fromiter(values, dtype=self.dtype)
