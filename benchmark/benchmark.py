@@ -82,7 +82,8 @@ def numpy_timeseries():
 @pytest.fixture()
 def numpy_timeseries_dtype():
     redis_client = redis.StrictRedis()
-    series = ttseries.RedisNumpyTimeSeries(redis_client,dtype=[("timestamp","float64"),("value","i")])
+    series = ttseries.RedisNumpyTimeSeries(redis_client,dtype=[("timestamp","float64"),("value","i")],
+                                           timestamp_column_name="timestamp")
     yield series
     series.flush()
 
