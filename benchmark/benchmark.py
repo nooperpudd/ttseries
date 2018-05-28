@@ -44,6 +44,12 @@ class InitData(object):
         array = numpy.array(results)
         return array
 
+    def prepare_numpy_array_dtype(self, length):
+        results = []
+        for i in range(length):
+            results.append((self.timestamp + i, i))
+        array = numpy.array(results,dtype=[("timestamp","float64"),("value","i")])
+        return array
 
 init_data = InitData()
 key = "APPL:SECOND:10"
@@ -69,6 +75,14 @@ def simple_time_series():
 def numpy_timeseries():
     redis_client = redis.StrictRedis()
     series = ttseries.RedisNumpyTimeSeries(redis_client)
+    yield series
+    series.flush()
+
+
+@pytest.fixture()
+def numpy_timeseries_dtype():
+    redis_client = redis.StrictRedis()
+    series = ttseries.RedisNumpyTimeSeries(redis_client,dtype=[("timestamp","float64"),("value","i")])
     yield series
     series.flush()
 
@@ -203,3 +217,33 @@ def test_add_hash_timeseries_without_serializer(hash_timeseries,
     def bench():
         hash_timeseries.add_many(name=key, array=data)
         hash_timeseries.flush()
+
+
+
+
+@pytest.mark.usefixtures("numpy_timeseries_dtype")
+@pytest.mark.benchmark(group="numpy_dtype", disable_gc=True)
+@pytest.mark.parametrize("length", [1000, 10000, 100000])
+def test_get_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
+                                         benchmark,
+                                         length):
+    numpy_timeseries_dtype.add_many(key,
+                              init_data.prepare_numpy_array_dtype(length))
+
+    @benchmark
+    def bench():
+        numpy_timeseries_dtype.get_slice(key)
+
+
+@pytest.mark.usefixtures("numpy_timeseries_dtype")
+@pytest.mark.benchmark(group="numpy_dtype", disable_gc=True)
+@pytest.mark.parametrize('data', [init_data.prepare_numpy_array_dtype(1000),
+                                  init_data.prepare_numpy_array_dtype(10000),
+                                  init_data.prepare_numpy_array_dtype(100000)])
+def test_add_numpy_timeseries_serializer(numpy_timeseries_dtype,
+                                         benchmark,
+                                         data):
+    @benchmark
+    def bench():
+        numpy_timeseries_dtype.add_many(name=key, array=data)
+        numpy_timeseries_dtype.flush()
