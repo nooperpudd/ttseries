@@ -10,6 +10,11 @@ Welcome to ttseries's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   storage
+   compress
+   serializer
+
+
 
 
 Indices and tables

@@ -20,8 +20,6 @@ Redis sorted sets can support maximum 2**32-1 members, more than 4 billion of
 numbers per set.
 
 
-
-
 Usage
 =====
 
@@ -32,16 +30,123 @@ if the repeated data with different timestamps to store in redis
 sorted sets, one element have been add to the sorted sets,
  but duplicated timestamp can't add to the sorted sets.
 
-
 `RedisHashTimeSeries`
 
 
 `RedisSimpleTimeSeries`
 
+`RedisNumpyTimeSeries`
+
+.. sourcecode:: python
+
+    from datetime import datetime
+
+    now = datetime.now()
+    timestamp = now.timestamp()
+
+    series_data = []
+
+    for i in range(1000):
+        series_data.append((timestamp+i,i))
+
+
+
+.. sourcecode:: python
+
+    from ttseries import RedisHashTimeSeries
+    import redis
+
+    client = redis.StrictRedis()
+    time_series = RedisHashTimeSeries(client=client)
+
+    key = "AAPL:TICK"
+    time_series.add_many(key,series_data)
+
+
+.. sourcecode:: python
+    count = time_series.length(key)
+
+
+.. sourcecode:: python
+
+   records = time_series.get_slice(key,start_timestamp=timestamp,limit=500)
+
+
+
+.. sourcecode:: python
+
+    import numpy as np
+
+    dtype = [("timestamp","float64"),("value","i")]
+
+    array = np.array(series_data)
+
+.. sourcecode:: python
+
+    array = np.array(series_data,dtype=dtype)
+
 
 
 Benchmark
 =========
+
+    add many function benchmark test
+
+    1. add 1000 records
+        `RedisHashTimeSeries`
+
+        `RedisSimpleTimeSeries`
+
+        `RedisNumpyTimeSeries`
+    2. add 10000 records
+
+         `RedisHashTimeSeries`
+
+        `RedisSimpleTimeSeries`
+
+        `RedisNumpyTimeSeries`
+
+    3. add 100000 records
+
+         `RedisHashTimeSeries`
+
+        `RedisSimpleTimeSeries`
+
+        `RedisNumpyTimeSeries`
+
+
+    get slice function benchmark test
+
+
+    1. get 1000 records
+
+          `RedisHashTimeSeries`
+
+        `RedisSimpleTimeSeries`
+
+        `RedisNumpyTimeSeries`
+
+    2. get 10000 records
+
+          `RedisHashTimeSeries`
+
+        `RedisSimpleTimeSeries`
+
+        `RedisNumpyTimeSeries`
+
+
+    3. get 100000 records
+
+          `RedisHashTimeSeries`
+
+        `RedisSimpleTimeSeries`
+
+        `RedisNumpyTimeSeries`
+
+
+
+
+``
 
 
 Author
