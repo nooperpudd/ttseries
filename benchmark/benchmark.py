@@ -48,8 +48,9 @@ class InitData(object):
         results = []
         for i in range(length):
             results.append((self.timestamp + i, i))
-        array = numpy.array(results,dtype=[("timestamp","float64"),("value","i")])
+        array = numpy.array(results, dtype=[("timestamp", "float64"), ("value", "i")])
         return array
+
 
 init_data = InitData()
 key = "APPL:SECOND:10"
@@ -82,7 +83,7 @@ def numpy_timeseries():
 @pytest.fixture()
 def numpy_timeseries_dtype():
     redis_client = redis.StrictRedis()
-    series = ttseries.RedisNumpyTimeSeries(redis_client,dtype=[("timestamp","float64"),("value","i")],
+    series = ttseries.RedisNumpyTimeSeries(redis_client, dtype=[("timestamp", "float64"), ("value", "i")],
                                            timestamp_column_name="timestamp")
     yield series
     series.flush()
@@ -101,12 +102,15 @@ def hash_timeseries():
 @pytest.mark.parametrize('data', [init_data.prepare_data(1000),
                                   init_data.prepare_data(10000),
                                   init_data.prepare_data(100000)])
+@pytest.mark.parametrize("chunks", [2000, 5000, 6000, 10000])
 def test_add_simple_timeseries_without_serializer(simple_timeseries_dumpy,
                                                   benchmark,
-                                                  data):
+                                                  data,
+                                                  chunks):
     @benchmark
     def bench():
-        simple_timeseries_dumpy.add_many(name=key, array=data)
+        simple_timeseries_dumpy.add_many(name=key, array=data,
+                                         chunks_size=chunks)
         simple_timeseries_dumpy.flush()
 
 
@@ -130,7 +134,7 @@ def test_get_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
 def test_iter_simple_timeseries_dumpy_serializer(simple_timeseries_dumpy,
                                                  benchmark,
                                                  length):
-    simple_timeseries_dumpy.add_many(key,init_data.prepare_data(length))
+    simple_timeseries_dumpy.add_many(key, init_data.prepare_data(length))
 
     @benchmark
     def bench():
@@ -183,12 +187,14 @@ def test_get_numpy_timeseries_serializer(numpy_timeseries,
 @pytest.mark.parametrize('data', [init_data.prepare_numpy_array(1000),
                                   init_data.prepare_numpy_array(10000),
                                   init_data.prepare_numpy_array(100000)])
+@pytest.mark.parametrize("chunks", [2000, 5000, 8000, 10000])
 def test_add_numpy_timeseries_serializer(numpy_timeseries,
                                          benchmark,
-                                         data):
+                                         data, chunks):
     @benchmark
     def bench():
-        numpy_timeseries.add_many(name=key, array=data)
+        numpy_timeseries.add_many(name=key, array=data,
+                                  chunks_size=chunks)
         numpy_timeseries.flush()
 
 
@@ -220,16 +226,14 @@ def test_add_hash_timeseries_without_serializer(hash_timeseries,
         hash_timeseries.flush()
 
 
-
-
 @pytest.mark.usefixtures("numpy_timeseries_dtype")
 @pytest.mark.benchmark(group="numpy_dtype", disable_gc=True)
 @pytest.mark.parametrize("length", [1000, 10000, 100000])
 def test_get_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
-                                         benchmark,
-                                         length):
+                                               benchmark,
+                                               length):
     numpy_timeseries_dtype.add_many(key,
-                              init_data.prepare_numpy_array_dtype(length))
+                                    init_data.prepare_numpy_array_dtype(length))
 
     @benchmark
     def bench():
@@ -242,8 +246,8 @@ def test_get_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
                                   init_data.prepare_numpy_array_dtype(10000),
                                   init_data.prepare_numpy_array_dtype(100000)])
 def test_add_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
-                                         benchmark,
-                                         data):
+                                               benchmark,
+                                               data):
     @benchmark
     def bench():
         numpy_timeseries_dtype.add_many(name=key, array=data)
