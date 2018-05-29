@@ -100,7 +100,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                 if timestamp in timestamps_dict:
                     raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
 
-    def add_many(self, name, array: np.ndarray, chunk_size=2000):
+    def add_many(self, name, array: np.ndarray, chunks_size=2000):
         """
         add large amount of numpy array into redis
         >>>[[timestamp,"a","c"],
@@ -108,7 +108,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         >>> [timestamp,"c","a"],...]
         :param name: redis key
         :param array: numpy.ndarray
-        :param chunk_size: int, split data into chunk, optimize for redis pipeline
+        :param chunks_size: int, split data into chunk, optimize for redis pipeline
         """
         self._validate_key(name)
 
