@@ -130,17 +130,16 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                     for row in chunk_array:
                         timestamp = row[self.timestamp_column_name]
                         data = row[names].tolist()
-                        serializer_data = self._serializer.dumps(data)
-                        pipe.zadd(name, timestamp, serializer_data)
+                        pipe.zadd(name, timestamp, self._serializer.dumps(data))
                 else:
+                    column_index = self.timestamp_column_index
 
                     def iter_numpy(arr):
-                        timestamp_ = arr[self.timestamp_column_index]
-                        part_one = arr[:self.timestamp_column_index].tolist()
-                        part_two = arr[self.timestamp_column_index + 1:].tolist()
-                        data_ = part_one + part_two
-                        serializer_data_ = self._serializer.dumps(data_)
-                        pipe.zadd(name, timestamp_, serializer_data_)
+
+                        timestamp_ = arr[column_index]
+                        data_ = arr[:column_index].tolist() + arr[column_index + 1:].tolist()
+
+                        pipe.zadd(name, timestamp_, self._serializer.dumps(data_))
 
                     np.apply_along_axis(iter_numpy, 1, chunk_array)
 
@@ -200,19 +199,22 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
             if self.dtype is None:
+                column_index = self.timestamp_column_index
 
                 def apply_numpy_index(serializer_data, timestamp):
                     data = self._serializer.loads(serializer_data)
-                    data.insert(self.timestamp_column_index, timestamp)
+                    data.insert(column_index, timestamp)
                     return data
 
                 values = itertools.starmap(apply_numpy_index, results)
                 return np.array(list(values))
 
             else:
+                column_index = self.timestamp_names_index
+
                 def apply_numpy_column(serializer_data, timestamp):
                     data = self._serializer.loads(serializer_data)
-                    data.insert(self.timestamp_names_index, timestamp)
+                    data.insert(column_index, timestamp)
                     return tuple(data)
 
                 values = itertools.starmap(apply_numpy_column, results)
