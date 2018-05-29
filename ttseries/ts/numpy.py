@@ -118,7 +118,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         # validate timestamp exist
         self._timestamp_exist(name, array)
 
-        for chunk_array in ttseries.utils.chunks_numpy(array, chunk_size):
+        for chunk_array in ttseries.utils.chunks_numpy(array, chunks_size):
             with self._lock, self._pipe_acquire() as pipe:
                 pipe.watch(name)
                 pipe.multi()
