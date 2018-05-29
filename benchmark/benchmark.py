@@ -241,7 +241,7 @@ def test_get_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
 @pytest.mark.parametrize('data', [init_data.prepare_numpy_array_dtype(1000),
                                   init_data.prepare_numpy_array_dtype(10000),
                                   init_data.prepare_numpy_array_dtype(100000)])
-def test_add_numpy_timeseries_serializer(numpy_timeseries_dtype,
+def test_add_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
                                          benchmark,
                                          data):
     @benchmark
