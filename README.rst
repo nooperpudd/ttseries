@@ -1,41 +1,50 @@
-TTseries
+TT series
 ========
 
-High-performance engine to store Time-series data in Redis.
+High performance engine to store Time-series data in Redis.
+
+
+TT-series is based on redis sorted sets to store the time-series data, `Sorted set` store scores with
+unique numbers under a single key, But it has a weakness to store records, only unique members are allowed
+and trying to record a time-series entry with the same value as a previous will result in only updating the score.
+So TT-series provide a solution to solve that problem.
+
+TT series normally can support redis version > 3.0, and will support *redis 5.0* in the future.
+
 
 |travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion|
 
 
-Install
-=======
 
-    pip install ttseries --upgrade
+Tips
+----
+
+**Max Store series length**
+For 32 bit Redis on a 32 bit platform redis sorted sets can support maximum 2**32-1 members,
+and for 64 bit redis on a 64 bit platform can support maximum 2*64-1 members.
+But large amount of data would cause more CPU activity, so better keep a balance with length of records is
+very important.
+
+
+Install
+-------
+
+    pip install ttseries
 
 
 Documentation
 =============
 
-TT-series is based on redis sorted sets to store the time-series data,
-Redis sorted sets can support maximum 2**32-1 members, more than 4 billion of
-numbers per set.
-
-
 Usage
-=====
-
-Redis Sorted sets have the data consistency principle,
-For elements with the same timestamp or different timestamps
-with the same data, but for the time-series data storage principle,
-if the repeated data with different timestamps to store in redis
-sorted sets, one element have been add to the sorted sets,
- but duplicated timestamp can't add to the sorted sets.
-
-`RedisHashTimeSeries`
+-----
 
 
-`RedisSimpleTimeSeries`
+1. `RedisHashTimeSeries`
 
-`RedisNumpyTimeSeries`
+
+2. `RedisSimpleTimeSeries`
+
+3. `RedisNumpyTimeSeries`
 
 .. sourcecode:: python
 
@@ -93,11 +102,13 @@ Benchmark
     add many function benchmark test
 
     1. add 1000 records
+
         `RedisHashTimeSeries`
 
         `RedisSimpleTimeSeries`
 
         `RedisNumpyTimeSeries`
+
     2. add 10000 records
 
          `RedisHashTimeSeries`
@@ -137,7 +148,7 @@ Benchmark
 
     3. get 100000 records
 
-          `RedisHashTimeSeries`
+        `RedisHashTimeSeries`
 
         `RedisSimpleTimeSeries`
 
@@ -146,8 +157,20 @@ Benchmark
 
 
 
-``
 
+Redis Sorted sets have the data consistency principle,
+For elements with the same timestamp or different timestamps
+with the same data, but for the time-series data storage principle,
+if the repeated data with different timestamps to store in redis
+sorted sets, one element have been add to the sorted sets,
+ but duplicated timestamp can't add to the sorted sets.
+
+TODO
+----
+
+1. Support Redis 5.0
+
+2. Support compress data
 
 Author
 ======
@@ -165,6 +188,14 @@ Email: 365504029@qq.com
 
 
 
+Reference
+---------
+
+
+    links: https://www.infoq.com/articles/redis-time-series
+
+
+.. _Sorted set: https://github.com/agiliq/merchant/
 
 
 .. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master
