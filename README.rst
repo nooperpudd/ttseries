@@ -1,6 +1,6 @@
-=========
+#########
 TT-series
-=========
+#########
 
 High performance engine to store Time-series data in Redis.
 
@@ -32,16 +32,16 @@ Tips
 
 Install
 -------
-::
 
+::
     pip install ttseries
 
-
+*************
 Documentation
-=============
+*************
 
 Features
-^^^^^^^^
+========
 
 1. Support Data Serializer, Default Enable with MessagePack.
 
@@ -55,7 +55,7 @@ Features
 
 
 Usage
-^^^^^
+=====
 
 
 TT-series provide three implementation to support different kinds of time-series data type.
@@ -78,6 +78,11 @@ serializer class methods.
 Examples
 --------
 
+``RedisSimpleTimeSeries`` && ``RedisHashTimeSeries`` && ``RedisNumpyTimeSeries``
+
+Three series data implementation provide the same functions and methods, in the usage will
+provide the difference in the methods.
+
 Prepare data records:
 
 .. sourcecode:: python
@@ -96,15 +101,8 @@ Prepare data records:
     client = StrictRedis() # redis client
 
 
-
-RedisSimpleTimeSeries && RedisHashTimeSeries && RedisNumpyTimeSeries
---------------------------------------------------------------------
-
-Three series data implementation provide the same functions and methods, in the usage will
-provide the difference in the methods.
-
-
 Add records
+^^^^^^^^^^^
 
 .. sourcecode:: python
 
@@ -119,7 +117,7 @@ Add records
 
 
 Count records length
-
+^^^^^^^^^^^^^^^^^^^^
 
 Get the length of the records or need just get the length from timestamp span.
 
@@ -137,7 +135,7 @@ Get the length of the records or need just get the length from timestamp span.
 
 
 trim records
-
+^^^^^^^^^^^^
 
 Trim the records as the ASC.
 
@@ -147,7 +145,7 @@ Trim the records as the ASC.
 
 
 delete timestamp span
-
+^^^^^^^^^^^^^^^^^^^^^
 
 Delete timestamp provide delete key or delete records from start timestamp to end timestamp.
 
@@ -159,7 +157,7 @@ Delete timestamp provide delete key or delete records from start timestamp to en
 
 
 Get Slice
-
+^^^^^^^^^
 
 Get slice form records provide start timestamp and end timestamp with **ASC** or **DESC** ordered.
 
@@ -182,7 +180,7 @@ just use ``(timestamp`` which support ``<timestamp`` or ``>timestamp`` sign form
 
 
 iter
-
+^^^^
 
 yield item from records.
 
@@ -194,7 +192,7 @@ yield item from records.
 
 
 RedisNumpyTimeSeries
-
+^^^^^^^^^^^^^^^^^^^^
 
 Numpy array support provide ``numpy.dtype`` or just arrays with data.
 
@@ -220,9 +218,9 @@ Or just numpy array without dtype, but must provide ``timestamp_column_index`` p
 
     np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
 
-
+****
 TODO
-====
+****
 
 1. Support Redis 5.0
 
@@ -230,23 +228,25 @@ TODO
 
 3. Support get slice chunk array data
 
+******
 Author
-======
+******
 
 - Winton Wang
 
+******
 Donate
-======
+******
 
-
+*******
 Contact
-=======
+*******
 
 Email: 365504029@qq.com
 
-
+*********
 Reference
-=========
+*********
 
 links: https://www.infoq.com/articles/redis-time-series
 
@@ -280,3 +280,4 @@ links: https://www.infoq.com/articles/redis-time-series
 
 .. |docs| image:: https://readthedocs.org/projects/ttseries/badge/?version=latest
     :target: http://ttseries.readthedocs.io/en/latest/?badge=latest
+
