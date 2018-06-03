@@ -33,7 +33,7 @@ Tips
 Install
 =======
 
-Install python package from pip release.::
+Install python package from pip release::
 
     pip install ttseries
 
