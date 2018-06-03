@@ -41,7 +41,7 @@ Documentation
 =============
 
 Features
---------
+^^^^^^^^
 
 1. Support Data Serializer, Default Enable with MessagePack.
 
@@ -55,24 +55,20 @@ Features
 
 
 Usage
------
+^^^^^
 
 
 TT-series provide three implementation to support different kinds of time-series data type.
 
-- ``RedisSimpleTimeSeries`` : Normally only base on Sorted sets to store records, previous records will impact the new
+- ``RedisSimpleTimeSeries`` : Normally only base on Sorted sets to store records, previous records will impact the new inserting records which are **NOT** unique numbers.
 
-inserting records which are **NOT** unique numbers.
+- ``RedisHashTimeSeries``: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
 
-- ``RedisHashTimeSeries``: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the
-data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
-
-- ``RedisNumpyTimeSeries``: base on Redis Sorted sets to store records, support ``numpy.ndarray`` data type format
-to serializer data.
+- ``RedisNumpyTimeSeries``: base on Redis Sorted sets to store records, support ``numpy.ndarray`` data type format to serializer data.
 
 
 Serializer Data
-^^^^^^^^^^^^^^^
+---------------
 
 TT-series use `MsgPack`_ to serializer data, because compare with other data serializer solutions,
 MsgPack provide a better performance solution to store data. If user don't want to use MsgPack to
@@ -80,7 +76,7 @@ serializer data, just inherit from ``ttseries.BaseSerializer`` class to implemen
 serializer class methods.
 
 Examples
-^^^^^^^^
+--------
 
 Prepare data records:
 
@@ -102,16 +98,16 @@ Prepare data records:
 
 
 RedisSimpleTimeSeries && RedisHashTimeSeries && RedisNumpyTimeSeries
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------------------------------
 
 Three series data implementation provide the same functions and methods, in the usage will
 provide the difference in the methods.
 
 
 Add records
-...........
 
 .. sourcecode:: python
+
     from ttseries import RedisSimpleTimeSeries
 
     simple_series = RedisSimpleTimeSeries(client=client)
@@ -123,7 +119,7 @@ Add records
 
 
 Count records length
-....................
+
 
 Get the length of the records or need just get the length from timestamp span.
 
@@ -141,7 +137,7 @@ Get the length of the records or need just get the length from timestamp span.
 
 
 trim records
-............
+
 
 Trim the records as the ASC.
 
@@ -151,7 +147,7 @@ Trim the records as the ASC.
 
 
 delete timestamp span
-.....................
+
 
 Delete timestamp provide delete key or delete records from start timestamp to end timestamp.
 
@@ -163,7 +159,7 @@ Delete timestamp provide delete key or delete records from start timestamp to en
 
 
 Get Slice
-.........
+
 
 Get slice form records provide start timestamp and end timestamp with **ASC** or **DESC** ordered.
 
@@ -186,7 +182,7 @@ just use ``(timestamp`` which support ``<timestamp`` or ``>timestamp`` sign form
 
 
 iter
-....
+
 
 yield item from records.
 
@@ -198,7 +194,7 @@ yield item from records.
 
 
 RedisNumpyTimeSeries
-....................
+
 
 Numpy array support provide ``numpy.dtype`` or just arrays with data.
 
@@ -284,4 +280,3 @@ links: https://www.infoq.com/articles/redis-time-series
 
 .. |docs| image:: https://readthedocs.org/projects/ttseries/badge/?version=latest
     :target: http://ttseries.readthedocs.io/en/latest/?badge=latest
-
