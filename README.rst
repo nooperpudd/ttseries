@@ -1,3 +1,4 @@
+=========
 TT-series
 =========
 
@@ -6,36 +7,35 @@ High performance engine to store Time-series data in Redis.
 |travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion|
 
 
-TT-series is based on redis sorted sets to store the time-series data, `Sorted set` store scores with
+TT-series is based on redis sorted sets to store the time-series data, `Sorted set`_ store scores with
 unique numbers under a single key, but it has a weakness to store records, only unique members are allowed
 and trying to record a time-series entry with the same value as a previous will result in only updating the score.
 So TT-series provide a solution to solve that problem.
 
-TT series normally can support redis version > 3.0, and will support *redis 5.0* in the future.
+TT series normally can support redis version > 3.0, and will support **redis 5.0** in the future.
 
 
 Tips
 ----
 
-**Max Store series length**
+- **Max Store series length**
 
     For 32 bit Redis on a 32 bit platform redis sorted sets can support maximum 2**32-1 members,
-    and for 64 bit redis on a 64 bit platform can support maximum 2*64-1 members.
+    and for 64 bit redis on a 64 bit platform can support maximum 2**64-1 members.
     But large amount of data would cause more CPU activity, so better keep a balance with length of records is
     very important.
 
-**Only Support Python 3.6**
+- **Only Support Python 3.6**
 
-Because python3.6 changed the dictionary implementation for better performance,
-so in Python3.6 dictionaries are insertion ordered.
-
-links: https://stackoverflow.com/questions/39980323/are-dictionaries-ordered-in-python-3-6
+    Because python 3.6 changed the dictionary implementation for better performance,
+    so in Python 3.6 dictionaries are insertion ordered.
+    links: https://stackoverflow.com/questions/39980323/are-dictionaries-ordered-in-python-3-6
 
 Install
 -------
 ::
-    pip install ttseries
 
+    pip install ttseries
 
 
 Documentation
@@ -44,47 +44,49 @@ Documentation
 Features
 --------
 
-1. Support Data Serializer
+1. Support Data Serializer, Default Enable with MessagePack.
 
-2. Support Data Compression
+2. Support Data Compression.
 
-3. In-order to void update previous records, Support Hash Set Time-series storage format.
+3. In-order to void update previous records, Support Redis Hashes Time-Series storage format.
 
-4. Support Numpy Ndarray data
+4. Support Numpy ndarray data type.
 
-5. Support **max length** to auto to trim records
-
-
-TT-series provide three implementation to support different kinds of time-series data type.
-
-- **RedisSimpleTimeSeries** : Normally only base on Sorted sets to store records, previous records will impact the new
-
-inserting records which are **NOT** unique numbers.
-
-- **RedisHashTimeSeries**: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the
-data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
-
-- **RedisNumpyTimeSeries**: base on Redis Sorted sets to store records, support `numpy.ndarray` data type format
-to serializer data.
-
-
+5. Support max length to auto to trim records.
 
 Usage
 -----
 
-**Serializer Data**:
+TT-series provide three implementation to support different kinds of time-series data type.
 
-Tt-series use `Msgpack` to serializer data, because compare with other data serializer solutions,
-Msgpack provide a better performance solution to store data. If user don't want to use **Msgpack** to serializer data, just
-inherit from `ttseries.BaseSerializer` class to implement the supported data serializers.
+- ``RedisSimpleTimeSeries`` : Normally only base on Sorted sets to store records, previous records will impact the new
 
+    inserting records which are **NOT** unique numbers.
+
+- ``RedisHashTimeSeries``: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the
+    data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
+
+- ``RedisNumpyTimeSeries``: base on Redis Sorted sets to store records, support ``numpy.ndarray`` data type format
+    to serializer data.
+
+
+Serializer Data
+^^^^^^^^^^^^^^^
+
+TT-series use `MsgPack`_ to serializer data, because compare with other data serializer solutions,
+MsgPack provide a better performance solution to store data. If user don't want to use MsgPack to
+serializer data, just inherit from ``ttseries.BaseSerializer`` class to implement the supported
+serializer class methods.
+
+Examples
+^^^^^^^^
 
 Prepare data records:
 
 .. sourcecode:: python
 
     from datetime import datetime
-
+    from redis import StrictRedis
 
     now = datetime.now()
     timestamp = now.timestamp()
@@ -94,12 +96,7 @@ Prepare data records:
     for i in range(1000):
         series_data.append((timestamp+i,i))
 
-
-Redis Client:
-
-.. sourcecode:: python
-    from redis import StrictRedis
-    client = StrictRedis()
+    client = StrictRedis() # redis client
 
 
 RedisSimpleTimeSeries && RedisHashTimeSeries && RedisNumpyTimeSeries
@@ -107,7 +104,8 @@ RedisSimpleTimeSeries && RedisHashTimeSeries && RedisNumpyTimeSeries
 Three series data implementation provide the same functions and methods, in the usage will
 provide the difference in the methods.
 
-`Add records`
+Add records
+...........
 
 .. sourcecode:: python
     from ttseries import RedisSimpleTimeSeries
@@ -120,9 +118,10 @@ provide the difference in the methods.
 
 
 
-`count length`
+Count records length
+....................
 
-get the length of the records or need just get the length from timestamp span.
+Get the length of the records or need just get the length from timestamp span.
 
 .. sourcecode:: python
 
@@ -137,33 +136,37 @@ get the length of the records or need just get the length from timestamp span.
     # result: ...: 11
 
 
-`trim records`
+trim records
+............
 
-trim the records as the ASC.
+Trim the records as the ASC.
 
 .. sourcecode:: python
 
     simple_series.trim(key,10) # trim 10 length of records
 
 
-`delete timestamp span`
+delete timestamp span
+.....................
 
-delete timestamp provide delete key or delete records from start timestamp to end timestamp
+Delete timestamp provide delete key or delete records from start timestamp to end timestamp
 .. sourcecode:: python
 
     simple_series.delete(key) # delete key with all records
 
     simple_series.delete(key, start_timestamp=timestamp) # delete key form start timestamp
 
-`Get Slice`
+
+Get Slice
+.........
 
 Get slice form records provide start timestamp and end timestamp with **ASC** or **DESC** ordered.
 
-**Default Ordered**: **ASC**
+**Default Order**: **ASC**
 
 If user want to get the timestamp great than (>) or less than (<) which not including the timestamp record.
 
-just use `(timestamp` which support `<timestamp` or `>timestamp` sign format like this.
+just use ``(timestamp`` which support ``<timestamp`` or ``>timestamp`` sign format like this.
 
 .. sourcecode:: python
 
@@ -178,7 +181,8 @@ just use `(timestamp` which support `<timestamp` or `>timestamp` sign format lik
     time_series.get_slice(key,start_timestamp=timestamp,limit=500)
 
 
-`iter`
+iter
+....
 
 yield item from records.
 
@@ -189,11 +193,12 @@ yield item from records.
 
 
 
-**RedisNumpyTimeSeries**
+RedisNumpyTimeSeries
+....................
 
-Numpy array support provide numpy.dtype or just arrays with data.
+Numpy array support provide ``numpy.dtype`` or just arrays with data.
 
-Use **numpy.dtype** to create records. must provide **timestamp column name** and  **dtype** parameters.
+Use ``numpy.dtype`` to create records. must provide ``timestamp_column_name`` and ``dtype`` parameters.
 
 .. sourcecode:: python
 
@@ -202,12 +207,12 @@ Use **numpy.dtype** to create records. must provide **timestamp column name** an
 
     dtype = [("timestamp","float64"),("value","i")]
 
-    array = np.array(series_data,dtype=dtype)
+    array = np.array(series_data, dtype=dtype)
 
-    np_series = RedisNumpyTimeSeries(client=client, dtype=dtype,timestamp_column_name="timestamp")
+    np_series = RedisNumpyTimeSeries(client=client, dtype=dtype, timestamp_column_name="timestamp")
 
 
-Or just numpy array without dtype, but must provide **timestamp column index** parameter.
+Or just numpy array without dtype, but must provide ``timestamp_column_index`` parameter.
 
 .. sourcecode:: python
 
@@ -216,9 +221,8 @@ Or just numpy array without dtype, but must provide **timestamp column index** p
     np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
 
 
-
 TODO
-----
+====
 
 1. Support Redis 5.0
 
@@ -242,13 +246,13 @@ Email: 365504029@qq.com
 
 
 Reference
----------
+=========
 
-    links: https://www.infoq.com/articles/redis-time-series
+links: https://www.infoq.com/articles/redis-time-series
 
 
 .. _Sorted set: https://github.com/agiliq/merchant/
-
+.. _Msgpack: http://msgpack.org
 
 .. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master
     :target: https://travis-ci.org/nooperpudd/ttseries
