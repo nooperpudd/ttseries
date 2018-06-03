@@ -1,6 +1,6 @@
-#########
+=========
 TT-series
-#########
+=========
 
 High performance engine to store Time-series data in Redis.
 
@@ -15,7 +15,7 @@ So TT-series provide a solution to solve that problem.
 TT series normally can support redis version > 3.0, and will support **redis 5.0** in the future.
 
 Tips
-----
+====
 
 - **Max Store series length**
 
@@ -31,17 +31,17 @@ Tips
     links: https://stackoverflow.com/questions/39980323/are-dictionaries-ordered-in-python-3-6
 
 Install
--------
+=======
 
 ::
     pip install ttseries
 
-*************
+
 Documentation
-*************
+=============
 
 Features
-========
+--------
 
 1. Support Data Serializer, Default Enable with MessagePack.
 
@@ -55,7 +55,7 @@ Features
 
 
 Usage
-=====
+-----
 
 
 TT-series provide three implementation to support different kinds of time-series data type.
@@ -218,9 +218,9 @@ Or just numpy array without dtype, but must provide ``timestamp_column_index`` p
 
     np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
 
-****
+
 TODO
-****
+====
 
 1. Support Redis 5.0
 
@@ -228,25 +228,25 @@ TODO
 
 3. Support get slice chunk array data
 
-******
+
 Author
-******
+======
 
 - Winton Wang
 
-******
-Donate
-******
 
-*******
+Donate
+======
+
+
 Contact
-*******
+=======
 
 Email: 365504029@qq.com
 
-*********
+
 Reference
-*********
+=========
 
 links: https://www.infoq.com/articles/redis-time-series
 
@@ -280,4 +280,6 @@ links: https://www.infoq.com/articles/redis-time-series
 
 .. |docs| image:: https://readthedocs.org/projects/ttseries/badge/?version=latest
     :target: http://ttseries.readthedocs.io/en/latest/?badge=latest
+
+
 
