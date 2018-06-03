@@ -14,7 +14,6 @@ So TT-series provide a solution to solve that problem.
 
 TT series normally can support redis version > 3.0, and will support **redis 5.0** in the future.
 
-
 Tips
 ----
 
@@ -33,8 +32,8 @@ Tips
 
 Install
 -------
-::
 
+::
     pip install ttseries
 
 
@@ -54,20 +53,22 @@ Features
 
 5. Support max length to auto to trim records.
 
+
 Usage
 -----
+
 
 TT-series provide three implementation to support different kinds of time-series data type.
 
 - ``RedisSimpleTimeSeries`` : Normally only base on Sorted sets to store records, previous records will impact the new
 
-    inserting records which are **NOT** unique numbers.
+inserting records which are **NOT** unique numbers.
 
 - ``RedisHashTimeSeries``: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the
-    data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
+data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
 
 - ``RedisNumpyTimeSeries``: base on Redis Sorted sets to store records, support ``numpy.ndarray`` data type format
-    to serializer data.
+to serializer data.
 
 
 Serializer Data
@@ -99,10 +100,13 @@ Prepare data records:
     client = StrictRedis() # redis client
 
 
+
 RedisSimpleTimeSeries && RedisHashTimeSeries && RedisNumpyTimeSeries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Three series data implementation provide the same functions and methods, in the usage will
 provide the difference in the methods.
+
 
 Add records
 ...........
@@ -149,7 +153,8 @@ Trim the records as the ASC.
 delete timestamp span
 .....................
 
-Delete timestamp provide delete key or delete records from start timestamp to end timestamp
+Delete timestamp provide delete key or delete records from start timestamp to end timestamp.
+
 .. sourcecode:: python
 
     simple_series.delete(key) # delete key with all records
@@ -165,7 +170,6 @@ Get slice form records provide start timestamp and end timestamp with **ASC** or
 **Default Order**: **ASC**
 
 If user want to get the timestamp great than (>) or less than (<) which not including the timestamp record.
-
 just use ``(timestamp`` which support ``<timestamp`` or ``>timestamp`` sign format like this.
 
 .. sourcecode:: python
@@ -251,7 +255,7 @@ Reference
 links: https://www.infoq.com/articles/redis-time-series
 
 
-.. _Sorted set: https://github.com/agiliq/merchant/
+.. _Sorted set: https://redis.io/sortedset/
 .. _Msgpack: http://msgpack.org
 
 .. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master
