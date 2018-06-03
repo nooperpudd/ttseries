@@ -8,4 +8,4 @@ benchmark-init:
 	pip3 install -r benchmark/requirements.txt --upgrade
 
 benchmark-test:
-	pytest benchmark/benchmark.py -v -s
+	pytest benchmark/benchmark.py -v -s --benchmark-disable-gc

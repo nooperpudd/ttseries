@@ -220,6 +220,14 @@ Or just numpy array without dtype, but must provide ``timestamp_column_index`` p
     np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
 
 
+Benchmark
+=========
+
+just run ``make benchmark-init``, after then start ``make benchmark-test``.
+
+Go to the benchmark directory there exist an example of the benchmark test reports.
+
+
 TODO
 ====
 
@@ -253,7 +261,7 @@ links: https://www.infoq.com/articles/redis-time-series
 
 
 .. _Sorted set: https://redis.io/sortedset/
-.. _Msgpack: http://msgpack.org
+.. _MsgPack: http://msgpack.org
 
 .. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master
     :target: https://travis-ci.org/nooperpudd/ttseries
