@@ -32,8 +32,8 @@ Tips
 
 Install
 -------
-
 ::
+
     pip install ttseries
 
 
