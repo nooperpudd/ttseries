@@ -5,4 +5,4 @@ from .ts import RedisSampleTimeSeries
 
 from .serializers import BaseSerializer
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
