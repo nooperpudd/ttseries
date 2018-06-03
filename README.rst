@@ -19,10 +19,10 @@ Tips
 
 **Max Store series length**
 
-For 32 bit Redis on a 32 bit platform redis sorted sets can support maximum 2**32-1 members,
-and for 64 bit redis on a 64 bit platform can support maximum 2*64-1 members.
-But large amount of data would cause more CPU activity, so better keep a balance with length of records is
-very important.
+    For 32 bit Redis on a 32 bit platform redis sorted sets can support maximum 2**32-1 members,
+    and for 64 bit redis on a 64 bit platform can support maximum 2*64-1 members.
+    But large amount of data would cause more CPU activity, so better keep a balance with length of records is
+    very important.
 
 **Only Support Python 3.6**
 
@@ -33,7 +33,7 @@ links: https://stackoverflow.com/questions/39980323/are-dictionaries-ordered-in-
 
 Install
 -------
-
+::
     pip install ttseries
 
 
@@ -44,29 +44,28 @@ Documentation
 Features
 --------
 
-    1. Support Data Serializer
+1. Support Data Serializer
 
-    2. Support Data Compression
+2. Support Data Compression
 
-    3. In-order to void update previous records, Support Hash Set Time-series storage format.
+3. In-order to void update previous records, Support Hash Set Time-series storage format.
 
-    4. Support Numpy Ndarray data
+4. Support Numpy Ndarray data
 
-    5. Support **max length** to auto to trim records
-
+5. Support **max length** to auto to trim records
 
 
 TT-series provide three implementation to support different kinds of time-series data type.
 
-    - **RedisSimpleTimeSeries** : Normally only base on Sorted sets to store records, previous records will impact the new
+- **RedisSimpleTimeSeries** : Normally only base on Sorted sets to store records, previous records will impact the new
 
-    inserting records which are **NOT** unique numbers.
+inserting records which are **NOT** unique numbers.
 
-    - **RedisHashTimeSeries**: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the
-    data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
+- **RedisHashTimeSeries**: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the
+data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
 
-    - **RedisNumpyTimeSeries**: base on Redis Sorted sets to store records, support `numpy.ndarray` data type format
-    to serializer data.
+- **RedisNumpyTimeSeries**: base on Redis Sorted sets to store records, support `numpy.ndarray` data type format
+to serializer data.
 
 
 
@@ -215,7 +214,6 @@ Or just numpy array without dtype, but must provide **timestamp column index** p
     array = np.array(series_data)
 
     np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
-
 
 
 
