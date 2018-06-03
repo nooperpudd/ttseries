@@ -84,6 +84,7 @@ Three series data implementation provide the same functions and methods, in the 
 provide the difference in the methods.
 
 Prepare data records:
+^^^^^^^^^^^^^^^^^^^^^
 
 .. sourcecode:: python
 
@@ -161,7 +162,7 @@ Get Slice
 
 Get slice form records provide start timestamp and end timestamp with **ASC** or **DESC** ordered.
 
-**Default Order**: **ASC**
+Default Order: **ASC**
 
 If user want to get the timestamp great than (>) or less than (<) which not including the timestamp record.
 just use ``(timestamp`` which support ``<timestamp`` or ``>timestamp`` sign format like this.
