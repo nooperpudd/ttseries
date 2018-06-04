@@ -21,8 +21,6 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                  timestamp_column_index=0,
                  *args, **kwargs):
         """
-        :param redis_client:
-        :param max_length:
         :param dtype: numpy.dtype, if set the dtype and timestamp_column_name can't be None
         :param timestamp_column_name: timestamp column name
         :param timestamp_column_index: timestamp column index
@@ -164,9 +162,10 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
     def iter(self, name, count=None):
         """
-        :param name:
-        :param count:
-        :return: iter, numpy.ndarray
+        iterable all data with count values
+        :param name: redis key
+        :param count: the count length of records
+        :return: yield numpy.ndarray
         """
 
         if self.dtype is None:

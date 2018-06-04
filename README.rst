@@ -2,7 +2,7 @@
 TT-series
 =========
 
-High performance engine to store Time-series data in Redis.
+High performance engine to store Time series data in Redis.
 
 |travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion|
 
@@ -30,6 +30,16 @@ Tips
     so in Python 3.6 dictionaries are insertion ordered.
     links: https://stackoverflow.com/questions/39980323/are-dictionaries-ordered-in-python-3-6
 
+- **Performance Tips**
+
+    With hiredis-py which it's targeted at speeding up parsing multi bulk replies from redis-server.
+    So with a large amount of bulk data insertion or getting from redis-server, it can improve a great performance improvement.
+
+    But hiredis-py official git repository have no updates for several years, so I updated the latest git repository from hiredis,
+    and the maintenance github link: https://github.com/nooperpudd/hiredis-py
+    But for windows users, you can't use that version.
+
+
 Install
 =======
 
@@ -44,13 +54,15 @@ Documentation
 Features
 --------
 
-1. Support Data Serializer, Default Enable with MessagePack.
+1. Quick inserts 100,000 records (1-2 sec) and get slice of 100,000 records (0.4-0.5 sec).
 
-2. Support Data Compression.
+2. Support Data Serializer, Default Enable with MessagePack.
 
-3. In-order to void update previous records, Support Redis Hashes Time-Series storage format.
+3. Support Data Compression.
 
-4. Support Numpy ndarray data type.
+4. In-order to void update previous records, Support Redis Hashes Time-Series storage format.
+
+5. Support Numpy ndarray data type.
 
 5. Support max length to auto to trim records.
 
@@ -261,7 +273,7 @@ Reference
 links: https://www.infoq.com/articles/redis-time-series
 
 
-.. _Sorted set: https://redis.io/sortedset/
+.. _Sorted set: https://redis.io/commands#sorted_set
 .. _MsgPack: http://msgpack.org
 
 .. |travis| image:: https://travis-ci.org/nooperpudd/ttseries.svg?branch=master

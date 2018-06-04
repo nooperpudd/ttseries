@@ -8,10 +8,8 @@ from .exceptions import RepeatedValueError
 
 def check_array_repeated(array):
     """
-    [(key,value),....]
-    check array repeated keys, if exist repeated keys
-    will raise  RepeatedValueError
-    :param array: [(timestamp,data),...]
+    check array repeated keys, if exist repeated keys will raise RepeatedValueError
+    :param array: [(key,value),....]
     :raise RepeatedValueError
     """
     keys, _ = itertools.zip_longest(*array)
@@ -25,10 +23,10 @@ def check_array_repeated(array):
 
 def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
     """
-    split numpy array in to chunk data
+    split numpy array into chunk array
     :param array: numpy array
     :param chunk_size: int, split data as the length of chunks
-    :return: numpy array
+    :return: yield numpy.ndarray
     """
     length = len(array)
     if length > chunk_size:
@@ -41,11 +39,13 @@ def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
 
 def chunks(iterable, chunk_size: int = 1000):
     """
+    split iterable array into chunks
+
     >>> chunks(range(6),chunk_size=2)
     ... [(0,1),(2,3),(4,5)]
     :param iterable: list, iter
     :param chunk_size: chunk split size
-    :return: yield, iter
+    :return: yield iterable values
     """
     iter_data = iter(iterable)
     while True:

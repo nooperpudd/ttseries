@@ -13,7 +13,7 @@ from ttseries.serializers import DumpySerializer
 # test time series RedisSimpleTimeSeries
 
 class InitData(object):
-    def __init__(self, ):
+    def __init__(self):
 
         now = datetime.datetime.now()
         self.timestamp = now.timestamp()
