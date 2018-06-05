@@ -10,8 +10,6 @@ import ttseries
 from ttseries.serializers import DumpySerializer
 
 
-# test time series RedisSimpleTimeSeries
-
 class InitData(object):
     def __init__(self):
 

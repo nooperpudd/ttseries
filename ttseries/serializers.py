@@ -111,7 +111,7 @@ class DumpySerializer(BaseSerializer):
     dumpy serializer class
     """
     def dumps(self, data, *args, **kwargs):
-        pass
+        return data
 
     def loads(self, data, *args, **kwargs):
-        pass
+        return data
