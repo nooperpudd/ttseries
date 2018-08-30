@@ -10,16 +10,24 @@ from .exceptions import RepeatedValueError
 
 
 @contextlib.contextmanager
-def p_map(func, iterable, chunk_size=1000):
+def pool_map(func, iterable, chunk_size=1000):
     """
-    optimize map func
+    Context Manager which return multiprocessing.pool apply func call calculation result.
+    correctly deals with thrown exceptions.
     :param func:
     :param iterable:
     :param chunk_size:
     :return: list
     """
-    pool = Pool(multiprocessing.cpu_count())
-    yield pool.starmap(func, iterable, chunk_size)
+    with Pool(multiprocessing.cpu_count()) as pool:
+        try:
+            yield pool.starmap(func, iterable, chunk_size)
+            pool.close()
+        except Exception as e:
+            pool.terminate()
+            raise e
+        finally:
+            pool.join()
 
 
 def check_array_repeated(array):
