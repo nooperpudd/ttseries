@@ -1,8 +1,15 @@
-class RedisTimeSeriesException(Exception):
+# encoding:utf-8
+class RedisTimeSeriesError(Exception):
     """
-    redis Exception
+    redis time series error
     """
-    pass
+
+
+class RepeatedValueError(Exception):
+    """
+    repeated value
+    """
+
 
 class SerializerError(Exception):
     """

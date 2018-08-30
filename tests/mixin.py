@@ -1,4 +1,6 @@
-from ttseries.exceptions import RedisTimeSeriesException
+from ttseries.exceptions import RedisTimeSeriesError
+
+
 class Mixin(object):
 
     def generate_data(self, length):
@@ -31,6 +33,13 @@ class Mixin(object):
             for timestamp, item in data_list:
                 self.time_series.add(key, timestamp, item)
         return keys
+
+    def test_assert_key_validate(self):
+
+        with self.assertRaises(RedisTimeSeriesError):
+            key1 = "nihao:ID"
+            results = self.generate_data(10)
+            self.time_series.add_many(key1, results)
 
     def test_add(self):
         key = "APPL:SECOND:1"
@@ -487,7 +496,7 @@ class Mixin(object):
         data_list = self.generate_data(5)
         key = "AAPL:SECOND:50"
 
-        with self.assertRaises(RedisTimeSeriesException):
+        with self.assertRaises(RedisTimeSeriesError):
             self.time_series.add_many(key, data_list)
             self.assertEqual(self.time_series.count(key), 5)
             results = self.time_series.get_slice(key)
@@ -514,3 +523,17 @@ class Mixin(object):
 
         result_data = self.time_series.get_slice(key)
         self.assertListEqual(data_list, result_data)
+
+    def test_iter_keys(self):
+        data_list = self.generate_data(10)
+        keys = self.prepare_many_data(data_list)
+        for item in self.time_series.iter_keys():
+            self.assertTrue(item in keys)
+
+    def test_iter(self):
+
+        data_list = self.generate_data(10)
+        key = self.add_data_list(data_list)
+
+        for item in self.time_series.iter(key):
+            self.assertTrue(item in data_list)

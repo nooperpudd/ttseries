@@ -1,8 +1,8 @@
 language: python
 
 python:
-  - "3.5.5"
-  - "3.6.5"
+  #- "3.5.5"
+  - "3.6"
 
 services:
   - redis-server
@@ -18,9 +18,11 @@ install:
   - pip install -U wheel pypi setuptools --upgrade
   - pip install -r requirements.txt
   - pip install -r requirements-dev.txt --upgrade
+  - pip install git+https://github.com/nooperpudd/hiredis-py.git@master#egg=hiredis
   - pip check
 
 script:
+  - redis-server -v
   - pytest -v -s
   - py.test -v --cov=ttseries --cov-report xml
 after_success:
@@ -30,7 +32,7 @@ deploy:
   provider: pypi
   user: nooperpudd
   password:
-    secure: 5aY1fBXsTKK7gjQYzRvD2rvmss4arWby+tA2T/2lY7PcvjnEeNPlAyV6jukRkfNbssa2tBoa28dHuXl+nyn/9GpQVF3aRTV/Tah8a2MDGf91e13Q4NKgzPzlVSITWl6646F7/ADau/t1mIPQPgZ9gshFuBHv3/dkqdgVhRMfRuSM1N/QswRAM0gjBIl6JILim1OhhBIE6C0ITBXu/BsG3x31Y/7DI7NLmcpAqtIWyp6FUNibri+JDDJtjnNzeuaF89bgwblkpc4fHfzJulD8sQszZISzbDfx/t3S6vV9ig1AM7jA7RUbcDIS6yec9pudcbLBzbNCKDysq8hEZfRBq13jrm5EksRlSKqn0ccFgynRjffUqePx76Xvhyjonf89DI2CdZSk+hhWV6iUEp3lpWhASqiF2KDiBtibcvTXctSK5gu12FzosyYwY1gUOByNUsYBHNIRnEq+ig1bOt7KhLi78ObSZ0YIPL096jjP5SFlkmR9AwZ7qyYWeZlDAaL6V7W6xw5qSzUxcG9E44qitNlLzR1DO6v9YPa8B9xczXn4q0H+WuzsCiKgfGiJKhJWblnJgatzcHm3EL2VHZFBXRgQXye9rXwiZRsudQxMhmmttsbcIUqrD7F1Gf/rmDlCGrFaPNNavYF3WbF3m8654zmJs0Q2eP7iAWqyFi1BlWY=
+    secure: zg529Q3C16zHwN+h/KdNJeXzLad8ibm8bGZojqCJgqB18UKk2tRDGoL5XpT+75gfdgUp1wbdaAgPuiSD0trK6nnwEto4IC9EnWI93cxSlHdDEfgjP61GclW3oF8nSjqfxo7LZRHtWhIiMcP5s5KBzfaGqlSZ8imSU2Jyh/0vj1VPYdMNQCKVrSeL5C6GGNI4ktvoE2ySNgCQZngGS6vZRuRIu2bRW4WHTbrpd1Hc/7S8Ub71Tvhpb8ZHBQDuEbUC1qQbVRYr0MrzhhVpBQqOeSyEMibVEl/N/bz/jeRqXN4FItbMeeZIrpHhagvJ6ksgF5T1YpwpXRpU2eurxd7WywUCAPyCUDmxP1qu/V6uWY6pVqzgrvYkzhq2FOgykc1xN5W7nonGHUyc3QHxVFdbb8k/xSf5ns3dXPQAOpPsXnd7ihHxpQqxd1fFlD3AZIzHg5emhpupdLI5c2+hZ7BEuRNlTU8uF//W9KdYnVxI34zvJKyKsXBg0r8SD5gYqFsaCAJodpDZOC6JE2tpx2+ERCeJV7iYQELyiJe8Oe2zV7nOrb2H+s644sfBhkwHA/0DPqIALhlcbk8neHMRwbNWMEM52kbC3EyX4On11AlLd+hS95bmmzrHH8i02ziLiTsnm0iAmja6I61D01kIGHmQpxBChfgpOQw/Q7YU+v6LmBA=
   distributions: sdist
   on:
     tags: true

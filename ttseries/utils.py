@@ -1,11 +1,15 @@
 # encoding:utf-8
 import itertools
 import multiprocessing
-from multiprocessing.pool import ThreadPool
+from multiprocessing.pool import Pool
+import contextlib
 
 import numpy as np
 
+from .exceptions import RepeatedValueError
 
+
+@contextlib.contextmanager
 def p_map(func, iterable, chunk_size=1000):
     """
     optimize map func
@@ -14,13 +18,31 @@ def p_map(func, iterable, chunk_size=1000):
     :param chunk_size:
     :return: list
     """
-    pool = ThreadPool(multiprocessing.cpu_count())
-    return pool.map(func, iterable, chunk_size)
+    pool = Pool(multiprocessing.cpu_count())
+    yield pool.starmap(func, iterable, chunk_size)
 
 
-def chunks_numpy(array: np.array, chunk_size=2000):
+def check_array_repeated(array):
     """
-    :return:
+    check array repeated keys, if exist repeated keys will raise RepeatedValueError
+    :param array: [(key,value),....]
+    :raise RepeatedValueError
+    """
+    keys, _ = itertools.zip_longest(*array)
+    keys_dict = {}
+    for key in keys:
+        if key in keys_dict:
+            raise RepeatedValueError("repeated value:", key)
+        else:
+            keys_dict.setdefault(key)
+
+
+def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
+    """
+    split numpy array into chunk array
+    :param array: numpy array
+    :param chunk_size: int, split data as the length of chunks
+    :return: yield numpy.ndarray
     """
     length = len(array)
     if length > chunk_size:
@@ -31,13 +53,15 @@ def chunks_numpy(array: np.array, chunk_size=2000):
         yield array
 
 
-def chunks(iterable, chunk_size=1000):
+def chunks(iterable, chunk_size: int = 1000):
     """
+    split iterable array into chunks
+
     >>> chunks(range(6),chunk_size=2)
     ... [(0,1),(2,3),(4,5)]
     :param iterable: list, iter
     :param chunk_size: chunk split size
-    :return: yield, iter
+    :return: yield iterable values
     """
     iter_data = iter(iterable)
     while True:
