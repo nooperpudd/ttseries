@@ -4,7 +4,7 @@ import itertools
 
 import ttseries.utils
 from ttseries.ts.base import RedisTSBase
-from ttseries.utils import p_map
+from ttseries.utils import pool_map
 
 
 class RedisHashTimeSeries(RedisTSBase):
@@ -146,8 +146,8 @@ class RedisHashTimeSeries(RedisTSBase):
                     self.delete(name, start_timestamp, end_timestamp)
         else:
             for chunk_keys in chunks_data:
-                incr_chunks = p_map(lambda x: self.incr_format.format(key=x), chunk_keys)
-                hash_chunks = p_map(lambda x: self.hash_format.format(key=x), chunk_keys)
+                incr_chunks = pool_map(lambda x: self.incr_format.format(key=x), chunk_keys)
+                hash_chunks = pool_map(lambda x: self.hash_format.format(key=x), chunk_keys)
                 del_items = itertools.chain(chunk_keys, incr_chunks, hash_chunks)
                 self.client.delete(*del_items)
 
@@ -199,7 +199,7 @@ class RedisHashTimeSeries(RedisTSBase):
         if results_ids:
             ids, timestamps = list(itertools.zip_longest(*results_ids))
             values = self.client.hmget(hash_key, *ids)
-            iter_dumps = p_map(self._serializer.loads, values)
+            iter_dumps = pool_map(self._serializer.loads, values)
             return list(itertools.zip_longest(timestamps, iter_dumps))
 
     def add_many(self, name, array: list, chunks_size=2000):
