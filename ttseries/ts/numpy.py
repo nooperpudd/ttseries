@@ -45,7 +45,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
         self.timestamp_column_index = timestamp_column_index
 
-    def _add_many_validate(self, array):
+    def _check_repeated_timestamp_index(self, array):
         """
         sorted timestamp and check exist repeated timestamp
         :param array:
@@ -110,13 +110,13 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         """
         self._validate_key(name)
 
-        array = self._add_many_validate(array)
+        array = self._check_repeated_timestamp_index(array)
         # auto trim timestamps
         array = self._auto_trim_array(name, array)
         # validate timestamp exist
         self._timestamp_exist(name, array)
 
-        for chunk_array in ttseries.utils.chunks_numpy(array, chunks_size):
+        for chunk_array in ttseries.utils.chunks_np_or_pd_array(array, chunks_size):
             with self._lock, self._pipe_acquire() as pipe:
                 pipe.watch(name)
                 pipe.multi()

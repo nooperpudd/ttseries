@@ -21,21 +21,20 @@ def check_array_repeated(array):
             keys_dict.setdefault(key)
 
 
-def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
+def chunks_np_or_pd_array(array, chunk_size: int = 2000):
     """
     split numpy array into chunk array
     :param array: numpy array
     :param chunk_size: int, split data as the length of chunks
     :return: yield numpy.ndarray
     """
-    length = len(array)
+    length = array.size
     if length > chunk_size:
         chunk = int(length / chunk_size)
         for item in np.array_split(array, chunk):
             yield item
     else:
         yield array
-
 
 def chunks(iterable, chunk_size: int = 1000):
     """
