@@ -28,13 +28,22 @@ def chunks_np_or_pd_array(array, chunk_size: int = 2000):
     :param chunk_size: int, split data as the length of chunks
     :return: yield numpy.ndarray
     """
-    length = array.size
+    length = array.shape[0]
     if length > chunk_size:
         chunk = int(length / chunk_size)
         for item in np.array_split(array, chunk):
             yield item
     else:
         yield array
+
+
+def np_datetime64_to_timestamp(dt64):
+    """
+    convert np.datetime64 to python datetime.timestamp
+    :return: timestamp
+    """
+    return (dt64 - np.datetime64("1970-01-01T00:00:00Z")) / np.timedelta64(1, 's')
+
 
 def chunks(iterable, chunk_size: int = 1000):
     """

@@ -1,51 +1,62 @@
 # encoding:utf-8
-
-from ttseries.ts.sample import RedisSampleTimeSeries
-from ttseries.exceptions import RedisTimeSeriesError
-
-import pandas as pd
-import ttseries.utils
-
 import itertools
 from collections import namedtuple
+from datetime import datetime
+
+import pandas as pd
+
+import ttseries.utils
+from ttseries.exceptions import RedisTimeSeriesError
+from ttseries.ts.sample import RedisSampleTimeSeries
 
 
 class RedisPandasTimeSeries(RedisSampleTimeSeries):
     """
     """
 
-    def __init__(self, redis_client, max_length=100000,
-                 columns=None,
+    def __init__(self, redis_client, timezone, columns,
+                 index_name=None,
+                 dtypes=None, max_length=100000,
                  *args, **kwargs):
+        """
+        :param redis_client:
+        :param timezone:
+        :param columns:
+        :param dtypes:
+        :param max_length:
+        :param args:
+        :param kwargs:
+        """
 
         super(RedisPandasTimeSeries, self).__init__(redis_client=redis_client,
                                                     max_length=max_length, *args, **kwargs)
 
         self.columns = columns
         self._row_name_tuple = namedtuple("data", columns)
+        self.tz = timezone
+        self.dtypes = dtypes
+        self.index_name = index_name
 
     def _timestamp_exist(self, name, data_frame):
         """
         :param name:
-        :param array:
+        :param data_frame:
         :return:
         """
         date_index = data_frame.index
 
         start_timestamp = data_frame.idxmin()
-        end_timestamp = data_frame.idxmax()
+        start_timestamp = start_timestamp.value.timestamp()
 
+        end_timestamp = data_frame.idxmax()
+        end_timestamp = end_timestamp.value.timestamp()
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:
             timestamps_dict = {item: None for item in date_index}
+            filer_dataframe = self.get_slice(name, start_timestamp, end_timestamp)
 
-            filer_array = self.get_slice(name, start_timestamp, end_timestamp)
-
-            if self.dtype:
-                filter_timestamps = filer_array[self.timestamp_column_name]
-            else:
-                filter_timestamps = filer_array[:, self.timestamp_column_index]
+            filter_timestamps = filer_dataframe.index
 
             for timestamp in filter_timestamps:
                 if timestamp in timestamps_dict:
@@ -74,7 +85,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         >>> [timestamp,"b","e"],
         >>> [timestamp,"c","a"],...]
         :param name: redis key
-        :param array: numpy.ndarray
+        :param data_frame: pandas.DataFrame
         :param chunks_size: int, split data into chunk, optimize for redis pipeline
         """
 
@@ -90,35 +101,48 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
             with self._lock, self._pipe_acquire() as pipe:
                 pipe.watch(name)
                 pipe.multi()
-
                 # To preserve dtypes while iterating over the rows, it is better
                 # to use :meth:`itertuples` which returns namedtuples of the values
                 # and which is generally faster than ``iterrows``
-
                 for row in chunk_array.itertuples():
                     index = row[0]  # index
                     row_data = row[1:]  # reset data tuple
                     pipe.zadd(name, index.timestamp(), self._serializer.dumps(row_data))
                 pipe.execute()
-    def add(self, name: str, timestamp: float, data):
+
+    def add(self, name, series):
         """
         :param name:
-        :param timestamp:
-        :param data:
-        :return:
+        :param series:
+        :return: bool
         """
-        pass
+        self._validate_key(name)
+        if isinstance(series, pd.Series) and hasattr(series.name, "timestamp"):
+            timestamp = series.name.timestamp()
+
+            with self._lock:
+                if not self.exist_timestamp(name, timestamp):
+                    values = series.tolist()
+                    data = self._serializer.dumps(values)
+                    if self.length(name) == self.max_length:
+                        # todo use 5.0 BZPOPMIN
+                        self.client.zremrangebyrank(name, min=0, max=0)
+                    return self.client.zadd(name, timestamp, data)
+        else:
+            raise RedisTimeSeriesError("Please check series Type or "
+                                       "series name value is not pandas.DateTimeIndex type")
 
     def get(self, name: str, timestamp: float):
         """
         get one item by timestamp
         :param name:
         :param timestamp:
-        :return: numpy.ndarray
+        :return: pandas.Series
         """
-        data = super().get(name, timestamp)
+        data = super(RedisPandasTimeSeries, self).get(name, timestamp)
         if data:
-            return pd.Series(data,timestamp,name=self.columns)
+            date = datetime.fromtimestamp(timestamp, tz=self.tz)
+            return pd.Series(data=data, index=self.columns, name=date)
 
     def iter(self, name, count=None):
         """
@@ -127,8 +151,9 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         :param count: the count length of records
         :return: yield numpy.ndarray
         """
-        for timestamp, data in super().iter(name,count):
-            yield pd.Series(data,timestamp,name=self.columns)
+        for timestamp, data in super(RedisPandasTimeSeries, self).iter(name, count):
+            date = datetime.fromtimestamp(timestamp, tz=self.tz)
+            yield pd.Series(data=data, index=self.columns, name=date)
 
     def get_slice(self, name, start_timestamp=None,
                   end_timestamp=None, limit=None, asc=True):
@@ -140,7 +165,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         :param end_timestamp: end timestamp
         :param limit: int,
         :param asc: bool, sorted as the timestamp values
-        :return: numpy.ndarray
+        :return:
         """
 
         results = self._get_slice_mixin(name, start_timestamp,
@@ -149,28 +174,15 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
-            data = itertools.starmap(lambda values: (values[1], self._serializer.loads(values[0])),results)
-
-            values = itertools.starmap()
-            return
-            # if self.dtype is None:
-            #     column_index = self.timestamp_column_index
-            #
-            #     def apply_numpy_index(serializer_data, timestamp):
-            #         data = self._serializer.loads(serializer_data)
-            #         data.insert(column_index, timestamp)
-            #         return data
-            #
-            #     values = itertools.starmap(apply_numpy_index, results)
-            #     return np.array(list(values))
-            #
-            # else:
-            #     column_index = self.timestamp_names_index
-            #
-            #     def apply_numpy_column(serializer_data, timestamp):
-            #         data = self._serializer.loads(serializer_data)
-            #         data.insert(column_index, timestamp)
-            #         return tuple(data)
-            #
-            #     values = itertools.starmap(apply_numpy_column, results)
-            #     return np.fromiter(values, dtype=self.dtype)
+            data = list(itertools.starmap(lambda serializer, timestamp:
+                                          [datetime.fromtimestamp(timestamp, tz=self.tz)] +
+                                          self._serializer.loads(serializer),
+                                          results))
+            # todo optmise in future
+            data_frame = pd.DataFrame.from_records(data, index=[0])
+            data_frame.index.names = [self.index_name]
+            data_frame = data_frame.drop(axis=1, columns=[0])
+            data_frame.columns = self.columns
+            if self.dtypes:
+                data_frame = data_frame.astype(dtype=self.dtypes)
+            return data_frame

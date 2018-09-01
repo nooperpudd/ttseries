@@ -171,5 +171,5 @@ class RedisSampleTimeSeries(RedisTSBase):
         :return: iter, [(timestamp, data),...]
         """
         for item in self.client.zscan_iter(name, count=count):
-            # ( timestamp, array_data)
+            # (timestamp, array_data)
             yield (item[1], self._serializer.loads(item[0]))

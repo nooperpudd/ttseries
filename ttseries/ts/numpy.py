@@ -27,8 +27,8 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :param args:
         :param kwargs:
         """
-        super().__init__(redis_client=redis_client,
-                         max_length=max_length, *args, **kwargs)
+        super(RedisNumpyTimeSeries, self).__init__(redis_client=redis_client,
+                                                   max_length=max_length, *args, **kwargs)
 
         if dtype is not None and timestamp_column_name is None:
             raise RedisTimeSeriesError("dtype and timestamp_column_name "
@@ -150,7 +150,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :param timestamp:
         :return: numpy.ndarray
         """
-        data = super().get(name, timestamp)
+        data = super(RedisNumpyTimeSeries, self).get(name, timestamp)
 
         if data:
             if self.dtype is None:
@@ -169,12 +169,12 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         """
 
         if self.dtype is None:
-            for timestamp, data in super().iter(name, count):
+            for timestamp, data in super(RedisNumpyTimeSeries, self).iter(name, count):
                 data.insert(self.timestamp_column_index, timestamp)
                 yield np.array(data)
         else:
 
-            for timestamp, data in super().iter(name, count):
+            for timestamp, data in super(RedisNumpyTimeSeries, self).iter(name, count):
                 data.insert(self.timestamp_names_index, timestamp)
                 yield np.array(tuple(data), dtype=self.dtype)
 
