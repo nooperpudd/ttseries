@@ -17,10 +17,12 @@ class RedisPandasTimeSeriesTest(unittest.TestCase):
         # https://github.com/pandas-dev/pandas/issues/9287
         self.columns = ["value"]
         self.dtypes = {"value": "int64"}
+        self.timezone = pytz.timezone("Asia/Shanghai")
         redis_client = redis.StrictRedis()
+
         self.time_series = RedisPandasTimeSeries(redis_client,
                                                  columns=self.columns,
-                                                 timezone=pytz.UTC,
+                                                 timezone=self.timezone,
                                                  dtypes=self.dtypes,
                                                  max_length=20)
 
@@ -29,7 +31,8 @@ class RedisPandasTimeSeriesTest(unittest.TestCase):
 
     def prepare_dataframe(self, length):
         now = datetime.datetime.now()
-        date_range = pandas.date_range(now, periods=length, freq="1min", tz=pytz.UTC)
+        date_range = pandas.date_range(now, periods=length,
+                                       freq="1min", tz=self.timezone)
 
         return pandas.DataFrame([i + 1 for i in range(len(date_range))],
                                 index=date_range, columns=self.columns)
@@ -40,8 +43,10 @@ class RedisPandasTimeSeriesTest(unittest.TestCase):
         series_item = data_frame.iloc[0]
 
         self.time_series.add(key, series_item)
-        timestamp = data_frame.index.values[0]
-        timestamp = np_datetime64_to_timestamp(timestamp)
+        datetime_value = data_frame.index.values[0]
+
+        timestamp = np_datetime64_to_timestamp(datetime_value)
+
         result = self.time_series.get(key, timestamp)
         pandas.testing.assert_series_equal(series_item, result)
 

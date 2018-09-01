@@ -37,12 +37,13 @@ def chunks_np_or_pd_array(array, chunk_size: int = 2000):
         yield array
 
 
-def np_datetime64_to_timestamp(dt64):
+def np_datetime64_to_timestamp(dt64, decimals=6):
     """
     convert np.datetime64 to python datetime.timestamp
     :return: timestamp
     """
-    return float((dt64 - np.datetime64("1970-01-01T00:00:00Z")) / np.timedelta64(1, 's'))
+    value = (dt64 - np.datetime64("1970-01-01T00:00:00Z")) / np.timedelta64(1, 's')
+    return float(np.around(value, decimals=decimals))
 
 
 def chunks(iterable, chunk_size: int = 1000):
