@@ -44,10 +44,10 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         date_index = data_frame.index
 
         start_timestamp = data_frame.idxmin()
-        start_timestamp = start_timestamp.value.timestamp()
+        start_timestamp = start_timestamp[0].timestamp()
 
         end_timestamp = data_frame.idxmax()
-        end_timestamp = end_timestamp.value.timestamp()
+        end_timestamp = end_timestamp[0].timestamp()
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:

@@ -79,6 +79,7 @@ TT-series provide three implementation to support different kinds of time-series
 
 - ``RedisNumpyTimeSeries``: base on Redis Sorted sets to store records, support ``numpy.ndarray`` data type format to serializer data.
 
+- ``RedisPandasTimeSeries``: base on
 
 Serializer Data
 ---------------
@@ -91,7 +92,7 @@ serializer class methods.
 Examples
 --------
 
-``RedisSimpleTimeSeries`` && ``RedisHashTimeSeries`` && ``RedisNumpyTimeSeries``
+``RedisSimpleTimeSeries`` && ``RedisHashTimeSeries`` && ``RedisNumpyTimeSeries`` && ``RedisPandasTimeSeries``
 
 Three series data implementation provide the same functions and methods, in the usage will
 provide the difference in the methods.
@@ -231,6 +232,11 @@ Or just numpy array without dtype, but must provide ``timestamp_column_index`` p
     array = np.array(series_data)
 
     np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
+
+
+RedisPandasTimeSeries
+^^^^^^^^^^^^^^^^^^^^^
+
 
 
 Benchmark

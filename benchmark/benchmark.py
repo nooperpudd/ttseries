@@ -3,7 +3,9 @@
 import datetime
 
 import numpy
+import pandas
 import pytest
+import pytz
 import redis
 
 import ttseries
@@ -13,8 +15,8 @@ from ttseries.serializers import DumpySerializer
 class InitData(object):
     def __init__(self):
 
-        now = datetime.datetime.now()
-        self.timestamp = now.timestamp()
+        self.now = datetime.datetime.now()
+        self.timestamp = self.now.timestamp()
 
     def prepare_data(self, length=1000):
         results = []
@@ -48,6 +50,14 @@ class InitData(object):
             results.append((self.timestamp + i, i))
         array = numpy.array(results, dtype=[("timestamp", "float64"), ("value", "i")])
         return array
+
+    def prepare_pd_dataframe(self, length):
+
+        date_range = pandas.date_range(self.now, periods=length,
+                                       freq="1min", tz=pytz.UTC)
+
+        return pandas.DataFrame([i + 1 for i in range(len(date_range))],
+                                index=date_range, columns=["values"])
 
 
 init_data = InitData()
@@ -91,6 +101,16 @@ def numpy_timeseries_dtype():
 def hash_timeseries():
     redis_client = redis.StrictRedis()
     series = ttseries.RedisHashTimeSeries(redis_client, serializer_cls=DumpySerializer)
+    yield series
+    series.flush()
+
+
+@pytest.fixture()
+def pandas_timeseries():
+    redis_client = redis.StrictRedis()
+    dtypes = {"value": "int64"}
+    series = ttseries.RedisPandasTimeSeries(redis_client, timezone=pytz.UTC,
+                                            columns=["values"])
     yield series
     series.flush()
 
@@ -250,3 +270,29 @@ def test_add_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
     def bench():
         numpy_timeseries_dtype.add_many(name=key, array=data)
         numpy_timeseries_dtype.flush()
+
+@pytest.mark.usefixtures("pandas_timeseries")
+@pytest.mark.benchmark(group="pandas", disable_gc=True)
+@pytest.mark.parametrize("data_frame", [init_data.prepare_pd_dataframe(1000),
+                                        init_data.prepare_pd_dataframe(10000),
+                                        init_data.prepare_pd_dataframe(100000)])
+def test_add_pandas_timeseries_serializer(pandas_timeseries,
+                                          benchmark,
+                                          data_frame):
+    @benchmark
+    def bench():
+        pandas_timeseries.add_many(name=key, data_frame=data_frame)
+        pandas_timeseries.flush()
+
+
+@pytest.mark.usefixtures("pandas_timeseries")
+@pytest.mark.benchmark(group="pandas", disable_gc=True)
+@pytest.mark.parametrize("length", [1000, 10000, 100000])
+def test_get_pandas_timeseries_serializer(pandas_timeseries,
+                                          benchmark,
+                                          length):
+    pandas_timeseries.add_many(key, init_data.prepare_pd_dataframe(length))
+
+    @benchmark
+    def bench():
+        pandas_timeseries.get_slice(key)

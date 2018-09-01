@@ -37,6 +37,12 @@ class RedisPandasTimeSeriesTest(unittest.TestCase):
         return pandas.DataFrame([i + 1 for i in range(len(date_range))],
                                 index=date_range, columns=self.columns)
 
+    def dataframe_empty(self, columns, dtypes, index=None):
+        data_frame = pandas.DataFrame(index=index)
+        for column, dtype in zip(columns, dtypes):
+            data_frame[column] = pandas.Series(dtype=dtype)
+        return data_frame
+
     def test_add(self):
         key = "AAPL:SECOND"
         data_frame = self.prepare_dataframe(10)
@@ -57,12 +63,6 @@ class RedisPandasTimeSeriesTest(unittest.TestCase):
 
         results_frame = self.time_series.get_slice(key)
         pandas.testing.assert_frame_equal(data_frame, results_frame)
-
-    def dataframe_empty(self, columns, dtypes, index=None):
-        data_frame = pandas.DataFrame(index=index)
-        for column, dtype in zip(columns, dtypes):
-            data_frame[column] = pandas.Series(dtype=dtype)
-        return data_frame
 
     def test_iter(self):
         key = "AAPL:SECOND"
