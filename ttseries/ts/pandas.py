@@ -86,9 +86,8 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         :param data_frame: pandas.DataFrame
         :param chunks_size: int, split data into chunk, optimize for redis pipeline
         """
-
         self._validate_key(name)
-        if type(data_frame.index) is not pd.DatetimeIndex:
+        if not isinstance(data_frame.index, pd.DatetimeIndex):
             raise RedisTimeSeriesError("DataFrame index must be pandas.DateTimeIndex type")
         # auto trim timestamps
         array = self._auto_trim_array(name, data_frame)
