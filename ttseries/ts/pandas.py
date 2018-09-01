@@ -1,6 +1,5 @@
 # encoding:utf-8
 import itertools
-from collections import namedtuple
 from datetime import datetime
 
 import pandas as pd
@@ -32,7 +31,6 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
                                                     max_length=max_length, *args, **kwargs)
 
         self.columns = columns
-        self._row_name_tuple = namedtuple("data", columns)
         self.tz = timezone
         self.dtypes = dtypes
         self.index_name = index_name

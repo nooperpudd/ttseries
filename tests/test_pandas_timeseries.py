@@ -12,6 +12,7 @@ from ttseries.utils import np_datetime64_to_timestamp
 class RedisPandasTimeSeriesTest(unittest.TestCase):
     """
     """
+
     def setUp(self):
         # https://github.com/pandas-dev/pandas/issues/9287
         self.columns = ["value"]
