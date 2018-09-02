@@ -94,18 +94,18 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         # validate timestamp exist
         self._timestamp_exist(name, array)
         for chunk_array in ttseries.utils.chunks_np_or_pd_array(array, chunks_size):
+            # To preserve dtypes while iterating over the rows, it is better
+            # to use :meth:`itertuples` which returns namedtuples of the values
+            # and which is generally faster than ``iterrows``
+            data_pairs = itertools.starmap(lambda *row: (row[0].timestamp(),
+                                                         self._serializer.dumps(row[1:])),
+                                           chunk_array.itertuples())
+            data_chains = itertools.chain.from_iterable(data_pairs)
 
-            with self._lock, self._pipe_acquire() as pipe:
-                pipe.watch(name)
-                pipe.multi()
-                # To preserve dtypes while iterating over the rows, it is better
-                # to use :meth:`itertuples` which returns namedtuples of the values
-                # and which is generally faster than ``iterrows``
-                for row in chunk_array.itertuples():
-                    index = row[0]  # index
-                    row_data = row[1:]  # reset data tuple
-                    pipe.zadd(name, index.timestamp(), self._serializer.dumps(row_data))
-                pipe.execute()
+            def pipe_func(_pipe):
+                _pipe.zadd(name, *tuple(data_chains))
+
+            self.transaction_pipe(pipe_func, watch_keys=name)
 
     def add(self, name, series):
         """
