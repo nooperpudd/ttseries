@@ -125,21 +125,39 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                     names = copy.deepcopy(self.names)
                     names.remove(self.timestamp_column_name)
 
-                    for row in chunk_array:
-                        timestamp = row[self.timestamp_column_name]
-                        data = row[names].tolist()
-                        pipe.zadd(name, timestamp, self._serializer.dumps(data))
+                    data_pairs = itertools.starmap(lambda *row:
+                                                   (row[self.timestamp_column_name],
+                                                    self._serializer.dumps(row[names].tolist())),
+                                                   chunk_array)
+
+                    chain_data = itertools.chain.from_iterable(data_pairs)
+                    pipe.zadd(name, *tuple(chain_data))
+
+                    # for row in chunk_array:
+                    #     timestamp = row[self.timestamp_column_name]
+                    #     data = row[names].tolist()
+                    #     pipe.zadd(name, timestamp, self._serializer.dumps(data))
                 else:
                     column_index = self.timestamp_column_index
 
-                    def iter_numpy(arr):
+                    data_pairs = itertools.starmap(lambda *arr:
+                                                   (arr[column_index],
+                                                    self._serializer.dumps(
+                                                        arr[:column_index].tolist() +
+                                                        arr[column_index + 1:].tolist()
+                                                    )),
+                                                   chunk_array)
+                    chain_data = itertools.chain.from_iterable(data_pairs)
+                    pipe.zadd(name, *tuple(chain_data))
 
-                        timestamp_ = arr[column_index]
-                        data_ = arr[:column_index].tolist() + arr[column_index + 1:].tolist()
+                    # def iter_numpy(arr):
+                    #
+                    #     timestamp_ = arr[column_index]
+                    #     data_ = arr[:column_index].tolist() + arr[column_index + 1:].tolist()
+                    #
+                    #     pipe.zadd(name, timestamp_, self._serializer.dumps(data_))
 
-                        pipe.zadd(name, timestamp_, self._serializer.dumps(data_))
-
-                    np.apply_along_axis(iter_numpy, 1, chunk_array)
+                    # np.apply_along_axis(iter_numpy, 1, chunk_array)
 
                 pipe.execute()
 

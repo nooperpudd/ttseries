@@ -109,7 +109,7 @@ def test_add_simple_timeseries_without_serializer(simple_timeseries_dumpy,
     def bench():
         simple_timeseries_dumpy.add_many(name=key, array=data,
                                          chunks_size=chunks)
-        simple_timeseries_dumpy.flush()
+    simple_timeseries_dumpy.flush()
 
 
 @pytest.mark.usefixtures("simple_timeseries_dumpy")
@@ -149,7 +149,7 @@ def test_simple_timeseries_serializer(simple_time_series, benchmark, data):
     @benchmark
     def bench():
         simple_time_series.add_many(name=key, array=data)
-        simple_time_series.flush()
+    simple_time_series.flush()
 
 
 @pytest.mark.usefixtures("simple_time_series")
@@ -193,7 +193,7 @@ def test_add_numpy_timeseries_serializer(numpy_timeseries,
     def bench():
         numpy_timeseries.add_many(name=key, array=data,
                                   chunks_size=chunks)
-        numpy_timeseries.flush()
+    numpy_timeseries.flush()
 
 
 @pytest.mark.usefixtures("hash_timeseries")
@@ -221,7 +221,7 @@ def test_add_hash_timeseries_without_serializer(hash_timeseries,
     @benchmark
     def bench():
         hash_timeseries.add_many(name=key, array=data)
-        hash_timeseries.flush()
+    hash_timeseries.flush()
 
 
 @pytest.mark.usefixtures("numpy_timeseries_dtype")
@@ -249,4 +249,5 @@ def test_add_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
     @benchmark
     def bench():
         numpy_timeseries_dtype.add_many(name=key, array=data)
-        numpy_timeseries_dtype.flush()
+
+    numpy_timeseries_dtype.flush()
