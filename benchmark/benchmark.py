@@ -110,7 +110,8 @@ def pandas_timeseries():
     redis_client = redis.StrictRedis()
     dtypes = {"value": "int64"}
     series = ttseries.RedisPandasTimeSeries(redis_client, timezone=pytz.UTC,
-                                            columns=["values"])
+                                            columns=["value"],
+                                            dtypes=dtypes)
     yield series
     series.flush()
 
