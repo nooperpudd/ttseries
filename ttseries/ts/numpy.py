@@ -27,8 +27,8 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :param args:
         :param kwargs:
         """
-        super().__init__(redis_client=redis_client,
-                         max_length=max_length, *args, **kwargs)
+        super(RedisNumpyTimeSeries, self).__init__(redis_client=redis_client,
+                                                   max_length=max_length, *args, **kwargs)
 
         if dtype is not None and timestamp_column_name is None:
             raise RedisTimeSeriesError("dtype and timestamp_column_name "
@@ -45,7 +45,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
         self.timestamp_column_index = timestamp_column_index
 
-    def _add_many_validate(self, array):
+    def _check_repeated_timestamp_index(self, array):
         """
         sorted timestamp and check exist repeated timestamp
         :param array:
@@ -110,13 +110,13 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         """
         self._validate_key(name)
 
-        array = self._add_many_validate(array)
+        array = self._check_repeated_timestamp_index(array)
         # auto trim timestamps
         array = self._auto_trim_array(name, array)
         # validate timestamp exist
         self._timestamp_exist(name, array)
 
-        for chunk_array in ttseries.utils.chunks_numpy(array, chunks_size):
+        for chunk_array in ttseries.utils.chunks_np_or_pd_array(array, chunks_size):
             with self._lock, self._pipe_acquire() as pipe:
                 pipe.watch(name)
                 pipe.multi()
@@ -150,7 +150,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         :param timestamp:
         :return: numpy.ndarray
         """
-        data = super().get(name, timestamp)
+        data = super(RedisNumpyTimeSeries, self).get(name, timestamp)
 
         if data:
             if self.dtype is None:
@@ -169,12 +169,12 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         """
 
         if self.dtype is None:
-            for timestamp, data in super().iter(name, count):
+            for timestamp, data in super(RedisNumpyTimeSeries, self).iter(name, count):
                 data.insert(self.timestamp_column_index, timestamp)
                 yield np.array(data)
         else:
 
-            for timestamp, data in super().iter(name, count):
+            for timestamp, data in super(RedisNumpyTimeSeries, self).iter(name, count):
                 data.insert(self.timestamp_names_index, timestamp)
                 yield np.array(tuple(data), dtype=self.dtype)
 

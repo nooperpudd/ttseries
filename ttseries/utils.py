@@ -21,20 +21,29 @@ def check_array_repeated(array):
             keys_dict.setdefault(key)
 
 
-def chunks_numpy(array: np.ndarray, chunk_size: int = 2000) -> np.ndarray:
+def chunks_np_or_pd_array(array, chunk_size: int = 2000):
     """
     split numpy array into chunk array
     :param array: numpy array
     :param chunk_size: int, split data as the length of chunks
     :return: yield numpy.ndarray
     """
-    length = len(array)
+    length = array.shape[0]
     if length > chunk_size:
         chunk = int(length / chunk_size)
         for item in np.array_split(array, chunk):
             yield item
     else:
         yield array
+
+
+def np_datetime64_to_timestamp(dt64, decimals=6):
+    """
+    convert np.datetime64 to python datetime.timestamp
+    :return: timestamp
+    """
+    value = (dt64 - np.datetime64("1970-01-01T00:00:00Z")) / np.timedelta64(1, 's')
+    return float(np.around(value, decimals=decimals))
 
 
 def chunks(iterable, chunk_size: int = 1000):
