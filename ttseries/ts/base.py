@@ -30,9 +30,7 @@ class RedisTSBase(object):
 
     for end timestamp<=10:
     the max or end timestamp could be `10`
-
     """
-
     # todo support redis cluster
     # todo support parllizem and multi threading
     # todo implement auto moving windows
@@ -192,7 +190,6 @@ class RedisTSBase(object):
         :return: trim array
         """
         array_length = len(array_data)
-
         # auto trim array
         if array_length + self.length(name) >= self.max_length:
             trim_length = array_length + self.length(name) - self.max_length
