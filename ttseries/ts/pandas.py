@@ -3,7 +3,7 @@ import itertools
 from datetime import datetime
 
 import pandas as pd
-
+import pytz
 import ttseries.utils
 from ttseries.exceptions import RedisTimeSeriesError
 from ttseries.ts.sample import RedisSampleTimeSeries
@@ -11,22 +11,21 @@ from ttseries.ts.sample import RedisSampleTimeSeries
 
 class RedisPandasTimeSeries(RedisSampleTimeSeries):
     """
+    Base on Pandas DataFrame to store time series data into redis sorted set.
     """
-
-    def __init__(self, redis_client, timezone, columns,
-                 index_name=None,
+    def __init__(self, redis_client, columns,
+                 index_name=None, timezone=pytz.UTC,
                  dtypes=None, max_length=100000,
                  *args, **kwargs):
         """
-        :param redis_client:
-        :param timezone:
-        :param columns:
-        :param dtypes:
-        :param max_length:
+        :param redis_client: redis client instance, only test with redis-py client.
+        :param timezone: datetime timezone
+        :param columns: pandas DataFrame columns names' list
+        :param dtypes: pandas columns data type, example: {"value":"int64","value2":"float64"}
+        :param max_length: int, max length of data to store the time-series data.
         :param args:
         :param kwargs:
         """
-
         super(RedisPandasTimeSeries, self).__init__(redis_client=redis_client,
                                                     max_length=max_length, *args, **kwargs)
 
@@ -37,6 +36,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
 
     def _timestamp_exist(self, name, data_frame):
         """
+        sorted timestamp and check exist repeated timestamp
         :param name:
         :param data_frame:
         :return:
@@ -62,6 +62,10 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
 
     def _auto_trim_array(self, name, array_data):
         """
+        auto to trim the redis sorted set base on the max length.
+
+        before to insert the data into redis, check the current stored array length and
+        trim the insert data array with max length
         :param name:
         :param array_data:
         :return:
@@ -78,10 +82,8 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
 
     def add_many(self, name, data_frame, chunks_size=2000):
         """
-        add large amount of numpy array into redis
-        >>>[[timestamp,"a","c"],
-        >>> [timestamp,"b","e"],
-        >>> [timestamp,"c","a"],...]
+        add large amount of pandas.DataFrame, the dataframe index type should be the pandas.DateTimeIndex.
+        or a kind of timestamp index.
         :param name: redis key
         :param data_frame: pandas.DataFrame
         :param chunks_size: int, split data into chunk, optimize for redis pipeline
@@ -89,6 +91,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         self._validate_key(name)
         if not isinstance(data_frame.index, pd.DatetimeIndex):
             raise RedisTimeSeriesError("DataFrame index must be pandas.DateTimeIndex type")
+        data_frame = data_frame.sort_index()
         # auto trim timestamps
         array = self._auto_trim_array(name, data_frame)
         # validate timestamp exist
@@ -109,8 +112,8 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
 
     def add(self, name, series):
         """
-        :param name:
-        :param series:
+        :param name: redis key
+        :param series: pandas.Series
         :return: bool
         """
         self._validate_key(name)
@@ -146,7 +149,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         iterable all data with count values
         :param name: redis key
         :param count: the count length of records
-        :return: yield numpy.ndarray
+        :return: yield pandas.Series
         """
         for timestamp, data in super(RedisPandasTimeSeries, self).iter(name, count):
             date = datetime.fromtimestamp(timestamp, tz=self.tz)
@@ -155,14 +158,16 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
     def get_slice(self, name, start_timestamp=None,
                   end_timestamp=None, limit=None, asc=True):
         """
-        return a slice numpy array from redis sorted sets
+        return a slice pandas.DataFrame from start timestamp to end timestamps,
+        if start timestamp is None, and end timestamp is None, will retrieve all records from
+        redis sorted set.
 
         :param name: redis key
-        :param start_timestamp: start timestamp
-        :param end_timestamp: end timestamp
+        :param start_timestamp: float, start timestamp
+        :param end_timestamp: float, end timestamp
         :param limit: int,
         :param asc: bool, sorted as the timestamp values
-        :return:
+        :return: pandas.DataFrame
         """
 
         results = self._get_slice_mixin(name, start_timestamp,
