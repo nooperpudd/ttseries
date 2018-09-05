@@ -183,8 +183,7 @@ class RedisTSBase(object):
     def _auto_trim_array(self, name, array_data):
         """
         before to insert the data into redis,
-        auto to trim the data exists in redis,
-        and validate the timestamp already exist in redis
+        auto to trim the data exists in redis with the limitation of max length
         :param name: redis key
         :param array_data: array data
         :return: trim array
