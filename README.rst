@@ -79,7 +79,7 @@ TT-series provide three implementation to support different kinds of time-series
 
 - ``RedisNumpyTimeSeries``: Support ``numpy.ndarray`` to store time-series records in redis sorted set.
 
-- ``RedisPandasTimeSeries``: Support ``Pandas.DataFrame`` to store time-series records in redis sorted set.
+- ``RedisPandasTimeSeries``: Support ``pandas.DataFrame`` to store time-series records in redis sorted set.
 
 Serializer Data
 ---------------
@@ -240,10 +240,10 @@ RedisPandasTimeSeries
 Pandas TimeSeries use ``pandas.DataFrame`` to store time-series in redis.
 To initialize the class must provide ``columns`` and ``dtypes`` parameters.
 
-    1. ``columns`` parameter indicates the column names of the ``pandas.DataFrame``.
+1. ``columns`` parameter indicates the column names of the ``pandas.DataFrame``.
 
-    2. ``dtypes`` indicates the dtype of each column in DataFrame, for example: ``{ "value1":"int64","value2":"float32"}``,
-       reference link: http://pbpython.com/pandas_dtypes.html
+2. ``dtypes`` indicates the dtype of each column in DataFrame, for example: ``{ "value1":"int64","value2":"float32"}``
+   reference link: http://pbpython.com/pandas_dtypes.html
 
 .. sourcecode:: python
 
@@ -264,6 +264,7 @@ To initialize the class must provide ``columns`` and ``dtypes`` parameters.
 
 Add
 ^^^
+
 Add a time-series record to redis, ``series`` parameter indicates ``pandas.Series`` data type.
 and especial the ``series`` name value data type must be the ``pandas.DatetimeIndex``.
 
@@ -275,6 +276,7 @@ and especial the ``series`` name value data type must be the ``pandas.DatetimeIn
 
 add_many
 ^^^^^^^^
+
 Add large amount of ``pandas.DataFrame`` into redis, with the ``dataframe`` index data type must be
 the ``pandas.DatetimeIndex``.
 For better insert performance, just use ``chunks_size`` to split the dataframe into fixed ``chunks_size``
@@ -283,8 +285,10 @@ rows of dataframes.
 .. sourcecode:: python
     pandas_ts.add_many(key, data_frame)
 
+
 iter & Get
 ^^^^^^^^^^
+
 retrieve records from redis sorted set, both of methods return ``pandas.Series``.
 
 .. sourcecode:: python
@@ -296,6 +300,7 @@ retrieve records from redis sorted set, both of methods return ``pandas.Series``
 
 get_slice
 ^^^^^^^^^
+
 retrieve records to slice with ``start timestamp`` or ``end timestamp``, with ``limit`` length.
 return ``pandas.DataFrame``
 
@@ -305,7 +310,8 @@ return ``pandas.DataFrame``
 
     # return records from start timestamp 1536157765.464465 to end timestamp 1536157780.464465
     result2_frame = padas_ts.get_slice(key, start_timestamp=1536157765.464465, end_timestamp=1536157780.464465)
-    
+
+
 Benchmark
 =========
 
