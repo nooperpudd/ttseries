@@ -125,6 +125,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
             def iter_numpy(*row):
                 timestamp = row[timestamp_index]
                 list_data = row[:timestamp_index] + row[timestamp_index + 1:]  # tuple add
+                list_data = tuple(np.asscalar(item) for item in list_data)
                 data = self._serializer.dumps(list_data)
                 return timestamp, data
 
@@ -190,24 +191,17 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         if results:
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
+            def apply_numpy_index(serializer_data, timestamp):
+                data = self._serializer.loads(serializer_data)
+                data.insert(column_index, timestamp)
+                return tuple(data)
+
+            values = itertools.starmap(apply_numpy_index, results)
+
             if self.dtype is None:
                 column_index = self.timestamp_column_index
-
-                def apply_numpy_index(serializer_data, timestamp):
-                    data = self._serializer.loads(serializer_data)
-                    data.insert(column_index, timestamp)
-                    return data
-
-                values = itertools.starmap(apply_numpy_index, results)
                 return np.array(list(values))
-
             else:
+
                 column_index = self.timestamp_name_index
-
-                def apply_numpy_column(serializer_data, timestamp):
-                    data = self._serializer.loads(serializer_data)
-                    data.insert(column_index, timestamp)
-                    return tuple(data)
-
-                values = itertools.starmap(apply_numpy_column, results)
                 return np.fromiter(values, dtype=self.dtype)
