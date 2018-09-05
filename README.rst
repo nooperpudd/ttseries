@@ -330,7 +330,7 @@ TODO
 
 2. Support compress data
 
-3. Support get slice chunk array data
+3. Support Redis cluster.
 
 
 Author
