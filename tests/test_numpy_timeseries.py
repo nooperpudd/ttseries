@@ -83,8 +83,8 @@ class RedisNumpyDtypeTSTest(unittest.TestCase, RedisNumpyTSTestMixin):
     def test_get(self):
         key = "AAPL:SECOND"
         array = self.prepare_numpy_data(10)
-
         self.time_series.add_many(key, array)
+
         result = self.time_series.get(key, array["timestamp"][0])
 
         numpy.testing.assert_array_equal(result, array[0])
