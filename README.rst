@@ -283,6 +283,7 @@ For better insert performance, just use ``chunks_size`` to split the dataframe i
 rows of dataframes.
 
 .. sourcecode:: python
+
     pandas_ts.add_many(key, data_frame)
 
 
@@ -292,6 +293,7 @@ iter & Get
 retrieve records from redis sorted set, both of methods return ``pandas.Series``.
 
 .. sourcecode:: python
+
     # yield all records data from redis
     for item in pandas_ts.iter(key):
         print(item)
@@ -305,6 +307,7 @@ retrieve records to slice with ``start timestamp`` or ``end timestamp``, with ``
 return ``pandas.DataFrame``
 
 .. sourcecode:: python
+
     # return records from start timestamp 1536157765.464465
     result_frame = pandas_ts.get_slice(key, start_timestamp=1536157765.464465)
 
