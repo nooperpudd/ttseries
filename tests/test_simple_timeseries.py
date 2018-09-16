@@ -44,3 +44,18 @@ class RedisSimpleTSTest(unittest.TestCase, Mixin):
 
             self.assertListEqual(data_list, result)
 
+    def test_get_max_timestamp(self):
+        data_list = self.generate_data(10)
+        key = "APPL:SECOND:5"
+        self.time_series.add_many(key, data_list)
+        # data_list.append((timestamp, {"value": i}))
+        max_value = max(data_list, key=lambda x: x[1]["value"])
+        self.assertEqual(max_value, self.time_series.max_timestamp(key))
+
+    def test_get_min_timestamp(self):
+        data_list = self.generate_data(10)
+        key = "APPL:SECOND:5"
+        self.time_series.add_many(key, data_list)
+        # data_list.append((timestamp, {"value": i}))
+        min_value = min(data_list, key=lambda x: x[1]["value"])
+        self.assertEqual(min_value, self.time_series.min_timestamp(key))

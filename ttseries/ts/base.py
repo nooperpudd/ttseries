@@ -31,6 +31,7 @@ class RedisTSBase(object):
     for end timestamp<=10:
     the max or end timestamp could be `10`
     """
+
     # todo support redis cluster
     # todo support parllizem and multi threading
     # todo implement auto moving windows
@@ -112,6 +113,28 @@ class RedisTSBase(object):
         :return: bool
         """
         return self.client.exists(name)
+
+    def max_timestamp(self, name):
+        """
+        get the max timestamp value with data
+        :param name: key name
+        :return: tuple, (timestamp, data)
+        """
+        value = self.client.zrevrangebyscore(name=name, min="-inf", max="+inf", withscores=True, start=0, num=1)
+        if value:
+            data, timestamp = value[0]  # [(b'\x81\xa5value\x00', 1537112691.29674)]
+            return timestamp, self._serializer.loads(data)
+
+    def min_timestamp(self, name):
+        """
+        get the min timestamp value with data
+        :param name: key name
+        :return: tuple, (timestamp, data)
+        """
+        value = self.client.zrangebyscore(name=name, min="-inf", max="+inf", withscores=True, start=0, num=1)
+        if value:
+            data, timestamp = value[0]  # [(b'\x81\xa5value\x00', 1537112691.29674)]
+            return timestamp, self._serializer.loads(data)
 
     def exist_timestamp(self, name, timestamp) -> bool:
         """
