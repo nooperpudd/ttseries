@@ -2,8 +2,10 @@
 import itertools
 from datetime import datetime
 
+import numpy
 import pandas as pd
 import pytz
+
 import ttseries.utils
 from ttseries.exceptions import RedisTimeSeriesError
 from ttseries.ts.sample import RedisSampleTimeSeries
@@ -13,6 +15,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
     """
     Base on Pandas DataFrame to store time series data into redis sorted set.
     """
+
     def __init__(self, redis_client, columns,
                  index_name=None, timezone=pytz.UTC,
                  dtypes=None, max_length=100000,
@@ -51,14 +54,26 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:
-            timestamps_dict = {item: None for item in date_index}
-            filer_dataframe = self.get_slice(name, start_timestamp, end_timestamp)
+            
+            filter_data_frame = self.get_slice(name, start_timestamp, end_timestamp)
 
-            filter_timestamps = filer_dataframe.index
+            filter_timestamps_index = filter_data_frame.index
 
-            for timestamp in filter_timestamps:
-                if timestamp in timestamps_dict:
-                    raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
+            # check repeated data
+            duplicated = numpy.intersect1d(filter_timestamps_index.to_pydatetime(), date_index.to_pydatetime())
+
+            if duplicated.size > 0:
+                raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:")
+
+    def _validate_append_data(self, data_frame):
+        """
+        validate repeated index
+        :return:
+        """
+        date_index = data_frame.index
+        unique_date = date_index[date_index.duplicated()].unique()
+        if not unique_date.empty:
+            raise RedisTimeSeriesError("DataFrame index can't contains duplicated index data")
 
     def _auto_trim_array(self, name, array_data):
         """
@@ -92,6 +107,10 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         if not isinstance(data_frame.index, pd.DatetimeIndex):
             raise RedisTimeSeriesError("DataFrame index must be pandas.DateTimeIndex type")
         data_frame = data_frame.sort_index()
+
+        # check timestamp repeated
+        self._validate_append_data(data_frame)
+
         # auto trim timestamps
         array = self._auto_trim_array(name, data_frame)
         # validate timestamp exist

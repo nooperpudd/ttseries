@@ -1,16 +1,18 @@
-import datetime
 import unittest
+from datetime import datetime
 
 import numpy as np
 import numpy.testing
 import redis
 
 from ttseries import RedisNumpyTimeSeries
+from ttseries.exceptions import RedisTimeSeriesError
 
 
 class RedisNumpyTSTestMixin(object):
     """
     """
+
     def test_get_slice(self):
         key = "AAPL:SECOND"
         array = self.prepare_numpy_data(10)
@@ -19,6 +21,14 @@ class RedisNumpyTSTestMixin(object):
         results = self.time_series.get_slice(key)
 
         numpy.testing.assert_array_equal(results, array)
+
+    def test_append_duplicated(self):
+        key = "AAPL:SECOND"
+        data_array = self.prepare_numpy_data(10)
+        self.time_series.add_many(key, data_array)
+
+        with self.assertRaises(RedisTimeSeriesError):
+            self.time_series.add_many(key, data_array)
 
     def test_iter(self):
         key = "AAPL:SECOND"
@@ -33,8 +43,8 @@ class RedisNumpyTSTest(unittest.TestCase, RedisNumpyTSTestMixin):
     def setUp(self):
         redis_client = redis.StrictRedis()
         self.time_series = RedisNumpyTimeSeries(redis_client=redis_client,
-                                                max_length=10)
-        self.timestamp = datetime.datetime.now().timestamp()
+                                                max_length=20)
+        self.timestamp = datetime.now().timestamp()
 
     def tearDown(self):
         self.time_series.flush()
@@ -64,9 +74,9 @@ class RedisNumpyDtypeTSTest(unittest.TestCase, RedisNumpyTSTestMixin):
         redis_client = redis.StrictRedis()
         self.dtype = [("timestamp", "float64"), ("value", "int")]
         self.time_series = RedisNumpyTimeSeries(redis_client=redis_client,
-                                                max_length=10, dtype=self.dtype,
+                                                max_length=20, dtype=self.dtype,
                                                 timestamp_column_name="timestamp")
-        self.timestamp = datetime.datetime.now().timestamp()
+        self.timestamp = datetime.now().timestamp()
 
     def tearDown(self):
         self.time_series.flush()

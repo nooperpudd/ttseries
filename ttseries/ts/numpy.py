@@ -44,7 +44,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
         self.timestamp_column_index = timestamp_column_index
 
-    def _check_repeated_timestamp_index(self, array):
+    def _validate_duplicated_index(self, array):
         """
         sorted timestamp and check exist repeated timestamp
         :param array:
@@ -84,8 +84,6 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
         if exist_length > 0:
 
-            timestamps_dict = {item: None for item in timestamp_array}
-
             filer_array = self.get_slice(name, start_timestamp, end_timestamp)
 
             if self.dtype:
@@ -93,9 +91,11 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
             else:
                 filter_timestamps = filer_array[:, self.timestamp_column_index]
 
-            for timestamp in filter_timestamps:
-                if timestamp in timestamps_dict:
-                    raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
+            # check repeated data
+            duplicated = np.intersect1d(filter_timestamps, timestamp_array)
+
+            if duplicated.size > 0:
+                raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:")
 
     def add_many(self, name, array: np.ndarray, chunks_size=2000):
         """
@@ -109,7 +109,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
         """
         self._validate_key(name)
 
-        array = self._check_repeated_timestamp_index(array)
+        array = self._validate_duplicated_index(array)
         # auto trim timestamps
         array = self._auto_trim_array(name, array)
         # validate timestamp exist
