@@ -95,7 +95,7 @@ class MsgPackSerializer(BaseSerializer):
         :param data: bytes
         :return:obj
         """
-        return msgpack.unpackb(data, encoding="utf-8", object_hook=MsgPackDecoder().decode, **kwargs)
+        return msgpack.unpackb(data,raw=False, object_hook=MsgPackDecoder().decode, **kwargs)
 
     def dumps(self, data, *args, **kwargs):
         """
@@ -103,7 +103,7 @@ class MsgPackSerializer(BaseSerializer):
         :param data: obj
         :return: bytes
         """
-        return msgpack.packb(data, encoding="utf-8", default=MsgPackEncoder().encode, **kwargs)
+        return msgpack.packb(data, default=MsgPackEncoder().encode, **kwargs)
 
 
 class DumpySerializer(BaseSerializer):
