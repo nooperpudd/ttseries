@@ -192,6 +192,7 @@ class RedisTSBase(object):
 
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
+        # todo optmize
         if exist_length > 0:
 
             timestamps_dict = {item[0]: None for item in array}
