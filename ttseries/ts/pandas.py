@@ -15,6 +15,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
     """
     Base on Pandas DataFrame to store time series data into redis sorted set.
     """
+
     def __init__(self, redis_client, columns,
                  index_name=None, timezone=pytz.UTC,
                  dtypes=None, max_length=100000,
@@ -105,10 +106,11 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         self._validate_key(name)
         if not isinstance(data_frame.index, pd.DatetimeIndex):
             raise RedisTimeSeriesError("DataFrame index must be pandas.DateTimeIndex type")
+        data_frame = data_frame.sort_index()
 
+        # check timestamp repeated
         self._validate_append_data(data_frame)
 
-        data_frame = data_frame.sort_index()
         # auto trim timestamps
         array = self._auto_trim_array(name, data_frame)
         # validate timestamp exist
