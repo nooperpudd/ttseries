@@ -54,7 +54,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:
-            # timestamps_dict = {item: None for item in date_index}
+            
             filter_data_frame = self.get_slice(name, start_timestamp, end_timestamp)
 
             filter_timestamps_index = filter_data_frame.index
