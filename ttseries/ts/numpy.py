@@ -84,8 +84,6 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
         if exist_length > 0:
 
-            timestamps_dict = {item: None for item in timestamp_array}
-
             filer_array = self.get_slice(name, start_timestamp, end_timestamp)
 
             if self.dtype:
@@ -93,9 +91,11 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
             else:
                 filter_timestamps = filer_array[:, self.timestamp_column_index]
 
-            for timestamp in filter_timestamps:
-                if timestamp in timestamps_dict:
-                    raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
+            # check repeated data
+            duplicated = np.intersect1d(filter_timestamps, timestamp_array)
+
+            if duplicated.size > 0:
+                raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:")
 
     def add_many(self, name, array: np.ndarray, chunks_size=2000):
         """
