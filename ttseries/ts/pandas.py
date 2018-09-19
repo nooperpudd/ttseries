@@ -54,7 +54,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:
-            
+
             filter_data_frame = self.get_slice(name, start_timestamp, end_timestamp)
 
             filter_timestamps_index = filter_data_frame.index
@@ -104,8 +104,10 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         :param chunks_size: int, split data into chunk, optimize for redis pipeline
         """
         self._validate_key(name)
+        if not isinstance(data_frame, pd.DataFrame):
+            raise TypeError("data parameter's type must be a pandas.DataFrame")
         if not isinstance(data_frame.index, pd.DatetimeIndex):
-            raise RedisTimeSeriesError("DataFrame index must be pandas.DateTimeIndex type")
+            raise TypeError("DataFrame index must be pandas.DateTimeIndex type")
         data_frame = data_frame.sort_index()
 
         # check timestamp repeated
