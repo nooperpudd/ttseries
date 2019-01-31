@@ -121,13 +121,13 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
             # To preserve dtypes while iterating over the rows, it is better
             # to use :meth:`itertuples` which returns namedtuples of the values
             # and which is generally faster than ``iterrows``
-            data_pairs = itertools.starmap(lambda *row: (row[0].timestamp(),
-                                                         self._serializer.dumps(row[1:])),
+            data_pairs = itertools.starmap(lambda *row:
+                                           {self._serializer.dumps(row[1:]): row[0].timestamp()},
                                            chunk_array.itertuples())
-            data_chains = itertools.chain.from_iterable(data_pairs)
 
             def pipe_func(_pipe):
-                _pipe.zadd(name, *tuple(data_chains))
+                for data_item in data_pairs:
+                    _pipe.zadd(name, data_item)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
@@ -148,7 +148,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
                     if self.length(name) == self.max_length:
                         # todo use 5.0 BZPOPMIN
                         self.client.zremrangebyrank(name, min=0, max=0)
-                    return self.client.zadd(name, timestamp, data)
+                    return self.client.zadd(name, {data: timestamp})
         else:
             raise RedisTimeSeriesError("Please check series Type or "
                                        "series name value is not pandas.DateTimeIndex type")

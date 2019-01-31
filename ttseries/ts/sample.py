@@ -42,7 +42,8 @@ class RedisSampleTimeSeries(RedisTSBase):
                 if self.length(name) == self.max_length:
                     # todo use 5.0 BZPOPMIN
                     self.client.zremrangebyrank(name, min=0, max=0)
-                return self.client.zadd(name, timestamp, data)
+
+                return self.client.zadd(name, mapping={data: timestamp})
 
     def add_many(self, name, array: list, chunks_size=2000):
         """
@@ -54,12 +55,13 @@ class RedisSampleTimeSeries(RedisTSBase):
         timestamp_pairs = self._add_many_validate_mixin(name, array)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
+
             filter_data = itertools.starmap(lambda timestamp, data:
-                                            (timestamp, self._serializer.dumps(data)), item)
-            filter_data = itertools.chain.from_iterable(filter_data)
+                                            {self._serializer.dumps(data): timestamp}, item)
 
             def pipe_func(_pipe):
-                _pipe.zadd(name, *tuple(filter_data))
+                for iter_item in filter_data:
+                    _pipe.zadd(name, iter_item)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 

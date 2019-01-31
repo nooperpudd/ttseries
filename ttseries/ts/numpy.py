@@ -125,15 +125,17 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
             def iter_numpy(*row):
                 timestamp = row[timestamp_index]
                 list_data = row[:timestamp_index] + row[timestamp_index + 1:]  # tuple add
-                list_data = tuple(np.asscalar(item) for item in list_data)
+                list_data = tuple(data.item() for data in list_data)
                 data = self._serializer.dumps(list_data)
-                return timestamp, data
+                return {data:timestamp }
 
             data_pairs = itertools.starmap(iter_numpy, chunk_array)
-            data_chains = itertools.chain.from_iterable(data_pairs)
+
+            # data_chains = itertools.chain.from_iterable(data_pairs)
 
             def pipe_func(_pipe):
-                _pipe.zadd(name, *tuple(data_chains))
+                for data_item in data_pairs:
+                    _pipe.zadd(name, data_item)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
