@@ -127,7 +127,7 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
                 list_data = row[:timestamp_index] + row[timestamp_index + 1:]  # tuple add
                 list_data = tuple(data.item() for data in list_data)
                 data = self._serializer.dumps(list_data)
-                return {data:timestamp }
+                return {data: timestamp}
 
             data_pairs = itertools.starmap(iter_numpy, chunk_array)
 
