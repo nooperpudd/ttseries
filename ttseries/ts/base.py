@@ -161,7 +161,8 @@ class RedisTSBase(object):
             while True:
                 try:
                     if watch_keys:
-                        pipe.watch(watch_keys)
+                        for key in watch_keys:
+                            pipe.watch(key)
                     pipe.multi()
 
                     if callable(pipe_func):

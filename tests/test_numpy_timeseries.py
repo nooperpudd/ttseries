@@ -64,7 +64,6 @@ class RedisNumpyTSTest(unittest.TestCase, RedisNumpyTSTestMixin):
         self.time_series.add_many(key, array)
         timestamp = array[0][0]
         result = self.time_series.get(key, timestamp)
-
         numpy.testing.assert_array_equal(result, array[0])
 
 
