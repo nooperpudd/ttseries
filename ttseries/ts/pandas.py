@@ -121,13 +121,12 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
             # To preserve dtypes while iterating over the rows, it is better
             # to use :meth:`itertuples` which returns namedtuples of the values
             # and which is generally faster than ``iterrows``
-            data_pairs = itertools.starmap(lambda *row:
-                                           {self._serializer.dumps(row[1:]): row[0].timestamp()},
-                                           chunk_array.itertuples())
+
+            data_pairs = {self._serializer.dumps(row[1:]): row[0].timestamp()
+                          for row in chunk_array.itertuples()}
 
             def pipe_func(_pipe):
-                for data_item in data_pairs:
-                    _pipe.zadd(name, data_item)
+                _pipe.zadd(name,data_pairs)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 

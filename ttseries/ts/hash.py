@@ -228,19 +228,15 @@ class RedisHashTimeSeries(RedisTSBase):
             dumps_results = itertools.starmap(lambda timestamp, data:
                                               (timestamp, self._serializer.dumps(data)), chunks)
 
+            # [(("timestamp",data),id),...]
             mix_data = itertools.zip_longest(dumps_results, ids_range)
             mix_data = list(mix_data)
-            # [(("timestamp",data),id),...]
-            timestamp_ids = itertools.starmap(lambda timestamp_values, _id:
-                                              {_id: timestamp_values[0]}, mix_data)  # [("timestamp",id),...]
 
-            ids_pairs = itertools.starmap(lambda timestamp_values, _id:
-                                          (_id, timestamp_values[1]), mix_data)  # [("id",data),...]
-            ids_values = {k: v for k, v in ids_pairs}
+            ids_values = {item[1]: item[0][1] for item in mix_data}
+            timestamp_ids = {item[1]: item[0][0] for item in mix_data}
 
             def pipe_func(_pipe):
-                for timestamp_item in timestamp_ids:
-                    _pipe.zadd(name, timestamp_item)
+                _pipe.zadd(name, timestamp_ids)
                 _pipe.hmset(hash_key, ids_values)
 
             self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))

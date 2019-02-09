@@ -55,13 +55,10 @@ class RedisSampleTimeSeries(RedisTSBase):
         timestamp_pairs = self._add_many_validate_mixin(name, array)
 
         for item in ttseries.utils.chunks(timestamp_pairs, chunks_size):
-
-            filter_data = itertools.starmap(lambda timestamp, data:
-                                            {self._serializer.dumps(data): timestamp}, item)
+            result_data = {self._serializer.dumps(data): timestamp for timestamp, data in item}
 
             def pipe_func(_pipe):
-                for iter_item in filter_data:
-                    _pipe.zadd(name, iter_item)
+                _pipe.zadd(name, result_data)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
