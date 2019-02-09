@@ -35,11 +35,6 @@ Tips
     With hiredis-py which it's targeted at speeding up parsing multi bulk replies from redis-server.
     So with a large amount of bulk data insertion or getting from redis-server, it can improve a great performance improvement.
 
-    But hiredis-py official git repository have no updates for several years, so I updated the latest git repository from hiredis,
-    and the maintenance github link: https://github.com/nooperpudd/hiredis-py
-    But for windows users, you can't use that version.
-
-
 Install
 =======
 
