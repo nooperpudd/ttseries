@@ -81,11 +81,11 @@ class RedisHashTimeSeries(RedisTSBase):
             dumps_dict = {key_id: dumps_data}  # { 1: values}
 
             def pipe_func(_pipe):  # trans function
-                _pipe.zadd(name, timestamp, key_id)  # APPL:SECOND, 233444334.33, 1
+                # _pipe.zadd(name, timestamp, key_id)  # APPL:SECOND, 233444334.33, 1
+                _pipe.zadd(name, {key_id: timestamp})
                 _pipe.hmset(hash_key, dumps_dict)  # APPL:second:HASH, {1:value}
 
             watch_keys = (name, hash_key)  # APPL:SECOND , APPL:second:HASH
-
             return self.transaction_pipe(pipe_func, watch_keys)
 
     def delete(self, name, start_timestamp=None, end_timestamp=None):
@@ -228,20 +228,15 @@ class RedisHashTimeSeries(RedisTSBase):
             dumps_results = itertools.starmap(lambda timestamp, data:
                                               (timestamp, self._serializer.dumps(data)), chunks)
 
+            # [(("timestamp",data),id),...]
             mix_data = itertools.zip_longest(dumps_results, ids_range)
             mix_data = list(mix_data)
-            # [(("timestamp",data),id),...]
-            timestamp_ids = itertools.starmap(lambda timestamp_values, _id:
-                                              (timestamp_values[0], _id), mix_data)  # [("timestamp",id),...]
 
-            ids_pairs = itertools.starmap(lambda timestamp_values, _id:
-                                          (_id, timestamp_values[1]), mix_data)  # [("id",data),...]
-
-            timestamp_ids = itertools.chain.from_iterable(timestamp_ids)
-            ids_values = {k: v for k, v in ids_pairs}
+            ids_values = {item[1]: item[0][1] for item in mix_data}
+            timestamp_ids = {item[1]: item[0][0] for item in mix_data}
 
             def pipe_func(_pipe):
-                _pipe.zadd(name, *tuple(timestamp_ids))
+                _pipe.zadd(name, timestamp_ids)
                 _pipe.hmset(hash_key, ids_values)
 
             self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))

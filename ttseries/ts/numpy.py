@@ -1,4 +1,5 @@
 # encoding:utf-8
+import copy
 import itertools
 
 import numpy as np
@@ -119,21 +120,37 @@ class RedisNumpyTimeSeries(RedisSampleTimeSeries):
 
             if self.dtype:
                 timestamp_index = self.names.index(self.timestamp_column_name)
+                names = copy.deepcopy(self.names)
+                names.pop(self.timestamp_column_index)
             else:
                 timestamp_index = self.timestamp_column_index
 
-            def iter_numpy(*row):
-                timestamp = row[timestamp_index]
-                list_data = row[:timestamp_index] + row[timestamp_index + 1:]  # tuple add
-                list_data = tuple(np.asscalar(item) for item in list_data)
-                data = self._serializer.dumps(list_data)
-                return timestamp, data
+            result = {}
 
-            data_pairs = itertools.starmap(iter_numpy, chunk_array)
-            data_chains = itertools.chain.from_iterable(data_pairs)
+            for row in chunk_array:
+
+                timestamp = row[timestamp_index]
+
+                if self.dtype:
+                    list_data = row[names]
+                else:
+                    part_row = row[:timestamp_index]
+                    rest_row = row[timestamp_index + 1:]
+                    if part_row.size == 0:
+                        list_data = rest_row
+                    elif rest_row.size == 0:
+                        list_data = part_row
+                    else:
+                        list_data = rest_row + part_row
+
+                list_data = tuple(data.item() for data in list_data)
+
+                data = self._serializer.dumps(list_data)
+
+                result[data] = timestamp
 
             def pipe_func(_pipe):
-                _pipe.zadd(name, *tuple(data_chains))
+                _pipe.zadd(name, result)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
