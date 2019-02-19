@@ -38,7 +38,7 @@ setup(
     long_description=codecs.open("README.rst", encoding="utf-8").read(),
     zip_safe=False,
     python_requires=">=3.6",
-    packages=find_packages(exclude=["tests*", "docs"]),
+    packages=find_packages(exclude=["tests*", "benchmark*", "docs"]),
     install_requires=codecs.open("requirements.txt", encoding="utf-8").readlines(),
     classifiers=[
         "Development Status :: 5 - Production/Stable",

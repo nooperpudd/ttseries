@@ -1,10 +1,10 @@
 # encoding:utf-8
 import contextlib
 import functools
-import itertools
 import threading
 from operator import itemgetter
 
+import numpy
 import redis
 
 import ttseries.utils
@@ -30,7 +30,6 @@ class RedisTSBase(object):
 
     for end timestamp<=10:
     the max or end timestamp could be `10`
-
     """
 
     # todo support redis cluster
@@ -115,6 +114,28 @@ class RedisTSBase(object):
         """
         return self.client.exists(name)
 
+    def max_timestamp(self, name):
+        """
+        get the max timestamp value with data
+        :param name: key name
+        :return: tuple, (timestamp, data)
+        """
+        value = self.client.zrevrangebyscore(name=name, min="-inf", max="+inf", withscores=True, start=0, num=1)
+        if value:
+            data, timestamp = value[0]  # [(b'\x81\xa5value\x00', 1537112691.29674)]
+            return timestamp, self._serializer.loads(data)
+
+    def min_timestamp(self, name):
+        """
+        get the min timestamp value with data
+        :param name: key name
+        :return: tuple, (timestamp, data)
+        """
+        value = self.client.zrangebyscore(name=name, min="-inf", max="+inf", withscores=True, start=0, num=1)
+        if value:
+            data, timestamp = value[0]  # [(b'\x81\xa5value\x00', 1537112691.29674)]
+            return timestamp, self._serializer.loads(data)
+
     def exist_timestamp(self, name, timestamp) -> bool:
         """
         Time complexity: O(log(N))
@@ -140,7 +161,8 @@ class RedisTSBase(object):
             while True:
                 try:
                     if watch_keys:
-                        pipe.watch(watch_keys)
+                        for key in watch_keys:
+                            pipe.watch(key)
                     pipe.multi()
 
                     if callable(pipe_func):
@@ -166,6 +188,7 @@ class RedisTSBase(object):
         :param name:
         :param array: already sorted array list
         """
+
         end_timestamp = array[-1][0]  # max
         start_timestamp = array[0][0]  # min
 
@@ -173,26 +196,25 @@ class RedisTSBase(object):
 
         if exist_length > 0:
 
-            timestamps_dict = {item[0]: None for item in array}
+            timestamp_array = numpy.fromiter((item[0] for item in array), numpy.float64)
 
             data_array = self.get_slice(name, start_timestamp, end_timestamp)
+            filter_timestamp_array = numpy.fromiter((item[0] for item in data_array), numpy.float64)
 
-            filter_timestamps, _ = itertools.zip_longest(*data_array)
-            for timestamp in filter_timestamps:
-                if timestamp in timestamps_dict:
-                    raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:", timestamp)
+            duplicated = numpy.intersect1d(timestamp_array, filter_timestamp_array)
+
+            if duplicated.size > 0:
+                raise RedisTimeSeriesError("add duplicated timestamp into redis -> timestamp:")
 
     def _auto_trim_array(self, name, array_data):
         """
         before to insert the data into redis,
-        auto to trim the data exists in redis,
-        and validate the timestamp already exist in redis
+        auto to trim the data exists in redis with the limitation of max length
         :param name: redis key
         :param array_data: array data
         :return: trim array
         """
         array_length = len(array_data)
-
         # auto trim array
         if array_length + self.length(name) >= self.max_length:
             trim_length = array_length + self.length(name) - self.max_length

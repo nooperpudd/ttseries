@@ -35,11 +35,6 @@ Tips
     With hiredis-py which it's targeted at speeding up parsing multi bulk replies from redis-server.
     So with a large amount of bulk data insertion or getting from redis-server, it can improve a great performance improvement.
 
-    But hiredis-py official git repository have no updates for several years, so I updated the latest git repository from hiredis,
-    and the maintenance github link: https://github.com/nooperpudd/hiredis-py
-    But for windows users, you can't use that version.
-
-
 Install
 =======
 
@@ -75,23 +70,24 @@ TT-series provide three implementation to support different kinds of time-series
 
 - ``RedisSimpleTimeSeries`` : Normally only base on Sorted sets to store records, previous records will impact the new inserting records which are **NOT** unique numbers.
 
-- ``RedisHashTimeSeries``: use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
+- ``RedisHashTimeSeries``: Use Redis Sorted sets with Hashes to store time-series data, User don't need to consider the data repeatability with records, but sorted sets with hashes would take some extra memories to store the keys.
 
-- ``RedisNumpyTimeSeries``: base on Redis Sorted sets to store records, support ``numpy.ndarray`` data type format to serializer data.
+- ``RedisNumpyTimeSeries``: Support ``numpy.ndarray`` to store time-series records in redis sorted set.
 
+- ``RedisPandasTimeSeries``: Support ``pandas.DataFrame`` to store time-series records in redis sorted set.
 
 Serializer Data
 ---------------
 
-TT-series use `MsgPack`_ to serializer data, because compare with other data serializer solutions,
-MsgPack provide a better performance solution to store data. If user don't want to use MsgPack to
+TT-series use `MsgPack`_ to serializer data, because compare with other data serializer's solutions,
+MsgPack provide a better performance solution to serialize data. If user don't want to use MsgPack to
 serializer data, just inherit from ``ttseries.BaseSerializer`` class to implement the supported
 serializer class methods.
 
 Examples
 --------
 
-``RedisSimpleTimeSeries`` && ``RedisHashTimeSeries`` && ``RedisNumpyTimeSeries``
+``RedisSimpleTimeSeries`` && ``RedisHashTimeSeries`` && ``RedisNumpyTimeSeries`` && ``RedisPandasTimeSeries``
 
 Three series data implementation provide the same functions and methods, in the usage will
 provide the difference in the methods.
@@ -230,7 +226,88 @@ Or just numpy array without dtype, but must provide ``timestamp_column_index`` p
 
     array = np.array(series_data)
 
-    np_series = RedisNumpyTimeSeries(client=client, ,timestamp_column_index=0)
+    np_series = RedisNumpyTimeSeries(client=client,timestamp_column_index=0)
+
+
+RedisPandasTimeSeries
+^^^^^^^^^^^^^^^^^^^^^
+
+Pandas TimeSeries use ``pandas.DataFrame`` to store time-series in redis.
+To initialize the class must provide ``columns`` and ``dtypes`` parameters.
+
+1. ``columns`` parameter indicates the column names of the ``pandas.DataFrame``.
+
+2. ``dtypes`` indicates the dtype of each column in DataFrame, for example: ``{ "value1":"int64","value2":"float32"}``
+   reference link: http://pbpython.com/pandas_dtypes.html
+
+.. sourcecode:: python
+
+    from datetime import datetime
+    import pytz
+
+    key = "AA:MIN"
+    now = datetime.now()
+    columns = ["value"]
+    date_range = pandas.date_range(now, periods=10, freq="1min", tz=pytz.UTC)
+
+    data_frame = pandas.DataFrame([i + 1 for i in range(len(date_range))],
+                                index=date_range, columns=columns)
+
+
+    dtypes = {"value":"int64"}
+    pandas_ts = RedisPandasTimeSeries(client=client, columns=columns, dtypes=dtypes)
+
+Add
+^^^
+
+Add a time-series record to redis, ``series`` parameter indicates ``pandas.Series`` data type.
+and especial the ``series`` name value data type must be the ``pandas.DatetimeIndex``.
+
+.. sourcecode:: python
+
+    series_item = data_frame.iloc[0]
+    pandas_ts.add(key, series_item)
+
+
+add_many
+^^^^^^^^
+
+Add large amount of ``pandas.DataFrame`` into redis, with the ``dataframe`` index data type must be
+the ``pandas.DatetimeIndex``.
+For better insert performance, just use ``chunks_size`` to split the dataframe into fixed ``chunks_size``
+rows of dataframes.
+
+.. sourcecode:: python
+
+    pandas_ts.add_many(key, data_frame)
+
+
+iter & Get
+^^^^^^^^^^
+
+retrieve records from redis sorted set, both of methods return ``pandas.Series``.
+
+.. sourcecode:: python
+
+    # yield all records data from redis
+    for item in pandas_ts.iter(key):
+        print(item)
+    # return one record with specific timestamp
+    pandas_ts.get(key, 1536157765.464465)
+
+get_slice
+^^^^^^^^^
+
+retrieve records to slice with ``start timestamp`` or ``end timestamp``, with ``limit`` length.
+return ``pandas.DataFrame``
+
+.. sourcecode:: python
+
+    # return records from start timestamp 1536157765.464465
+    result_frame = pandas_ts.get_slice(key, start_timestamp=1536157765.464465)
+
+    # return records from start timestamp 1536157765.464465 to end timestamp 1536157780.464465
+    result2_frame = padas_ts.get_slice(key, start_timestamp=1536157765.464465, end_timestamp=1536157780.464465)
 
 
 Benchmark
@@ -248,7 +325,7 @@ TODO
 
 2. Support compress data
 
-3. Support get slice chunk array data
+3. Support Redis cluster.
 
 
 Author

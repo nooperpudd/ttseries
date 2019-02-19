@@ -3,7 +3,9 @@
 import datetime
 
 import numpy
+import pandas
 import pytest
+import pytz
 import redis
 
 import ttseries
@@ -13,8 +15,8 @@ from ttseries.serializers import DumpySerializer
 class InitData(object):
     def __init__(self):
 
-        now = datetime.datetime.now()
-        self.timestamp = now.timestamp()
+        self.now = datetime.datetime.now()
+        self.timestamp = self.now.timestamp()
 
     def prepare_data(self, length=1000):
         results = []
@@ -48,6 +50,14 @@ class InitData(object):
             results.append((self.timestamp + i, i))
         array = numpy.array(results, dtype=[("timestamp", "float64"), ("value", "i")])
         return array
+
+    def prepare_pd_dataframe(self, length):
+
+        date_range = pandas.date_range(self.now, periods=length,
+                                       freq="1min", tz=pytz.UTC)
+
+        return pandas.DataFrame([i + 1 for i in range(len(date_range))],
+                                index=date_range, columns=["values"])
 
 
 init_data = InitData()
@@ -95,6 +105,17 @@ def hash_timeseries():
     series.flush()
 
 
+@pytest.fixture()
+def pandas_timeseries():
+    redis_client = redis.StrictRedis()
+    dtypes = {"value": "int64"}
+    series = ttseries.RedisPandasTimeSeries(redis_client, timezone=pytz.UTC,
+                                            columns=["value"],
+                                            dtypes=dtypes)
+    yield series
+    series.flush()
+
+
 @pytest.mark.usefixtures("simple_timeseries_dumpy")
 @pytest.mark.benchmark(group="simple_dumpy", disable_gc=True)
 @pytest.mark.parametrize('data', [init_data.prepare_data(1000),
@@ -109,6 +130,7 @@ def test_add_simple_timeseries_without_serializer(simple_timeseries_dumpy,
     def bench():
         simple_timeseries_dumpy.add_many(name=key, array=data,
                                          chunks_size=chunks)
+
         simple_timeseries_dumpy.flush()
 
 
@@ -149,6 +171,7 @@ def test_simple_timeseries_serializer(simple_time_series, benchmark, data):
     @benchmark
     def bench():
         simple_time_series.add_many(name=key, array=data)
+
         simple_time_series.flush()
 
 
@@ -193,6 +216,7 @@ def test_add_numpy_timeseries_serializer(numpy_timeseries,
     def bench():
         numpy_timeseries.add_many(name=key, array=data,
                                   chunks_size=chunks)
+
         numpy_timeseries.flush()
 
 
@@ -221,6 +245,7 @@ def test_add_hash_timeseries_without_serializer(hash_timeseries,
     @benchmark
     def bench():
         hash_timeseries.add_many(name=key, array=data)
+
         hash_timeseries.flush()
 
 
@@ -249,4 +274,32 @@ def test_add_numpy_dtype_timeseries_serializer(numpy_timeseries_dtype,
     @benchmark
     def bench():
         numpy_timeseries_dtype.add_many(name=key, array=data)
+
         numpy_timeseries_dtype.flush()
+
+
+@pytest.mark.usefixtures("pandas_timeseries")
+@pytest.mark.benchmark(group="pandas", disable_gc=True)
+@pytest.mark.parametrize("data_frame", [init_data.prepare_pd_dataframe(1000),
+                                        init_data.prepare_pd_dataframe(10000),
+                                        init_data.prepare_pd_dataframe(100000)])
+def test_add_pandas_timeseries_serializer(pandas_timeseries,
+                                          benchmark,
+                                          data_frame):
+    @benchmark
+    def bench():
+        pandas_timeseries.add_many(name=key, data_frame=data_frame)
+        pandas_timeseries.flush()
+
+
+@pytest.mark.usefixtures("pandas_timeseries")
+@pytest.mark.benchmark(group="pandas", disable_gc=True)
+@pytest.mark.parametrize("length", [1000, 10000, 100000])
+def test_get_pandas_timeseries_serializer(pandas_timeseries,
+                                          benchmark,
+                                          length):
+    pandas_timeseries.add_many(key, init_data.prepare_pd_dataframe(length))
+
+    @benchmark
+    def bench():
+        pandas_timeseries.get_slice(key)
