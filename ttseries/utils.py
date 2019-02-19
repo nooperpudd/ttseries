@@ -1,15 +1,14 @@
 # encoding:utf-8
-import itertools
-import multiprocessing
-from multiprocessing.pool import ThreadPool
 import contextlib
+import itertools
+from multiprocessing.pool import ThreadPool
 
 import numpy as np
 
 from .exceptions import RepeatedValueError
 
 
-@contextlib.contextmanager
+# @contextlib.contextmanager
 def pool_map(func, iterable, chunk_size=1000):
     """
     Context Manager which return multiprocessing.pool apply func call calculation result.
@@ -19,15 +18,18 @@ def pool_map(func, iterable, chunk_size=1000):
     :param chunk_size:
     :return: list
     """
-    with ThreadPool(4) as pool:
-        try:
-            yield pool.starmap(func, iterable, chunk_size)
-            pool.close()
-        except Exception as e:
-            pool.terminate()
-            raise e
-        finally:
-            pool.join()
+    pool = ThreadPool(2)
+    try:
+        return pool.map(func, iterable, chunk_size)
+    except Exception as e:
+        pool.terminate()
+        raise e
+    finally:
+        pool.close()
+        pool.join()
+
+
+
 
 
 def check_array_repeated(array):
