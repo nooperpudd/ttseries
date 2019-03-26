@@ -5,7 +5,6 @@ import datetime
 import numpy
 import pandas
 import pytest
-import pytz
 import redis
 
 import ttseries
@@ -53,8 +52,7 @@ class InitData(object):
 
     def prepare_pd_dataframe(self, length):
 
-        date_range = pandas.date_range(self.now, periods=length,
-                                       freq="1min", tz=pytz.UTC)
+        date_range = pandas.date_range(self.now, periods=length,freq="1min")
 
         return pandas.DataFrame([i + 1 for i in range(len(date_range))],
                                 index=date_range, columns=["values"])
@@ -109,7 +107,7 @@ def hash_timeseries():
 def pandas_timeseries():
     redis_client = redis.StrictRedis()
     dtypes = {"value": "int64"}
-    series = ttseries.RedisPandasTimeSeries(redis_client, timezone=pytz.UTC,
+    series = ttseries.RedisPandasTimeSeries(redis_client,
                                             columns=["value"],
                                             dtypes=dtypes)
     yield series

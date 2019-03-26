@@ -81,7 +81,6 @@ class RedisHashTimeSeries(RedisTSBase):
             dumps_dict = {key_id: dumps_data}  # { 1: values}
 
             def pipe_func(_pipe):  # trans function
-                # _pipe.zadd(name, timestamp, key_id)  # APPL:SECOND, 233444334.33, 1
                 _pipe.zadd(name, {key_id: timestamp})
                 _pipe.hmset(hash_key, dumps_dict)  # APPL:second:HASH, {1:value}
 

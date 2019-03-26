@@ -4,7 +4,6 @@ from datetime import datetime
 
 import numpy
 import pandas as pd
-import pytz
 
 import ttseries.utils
 from ttseries.exceptions import RedisTimeSeriesError
@@ -17,9 +16,8 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
     """
 
     def __init__(self, redis_client, columns,
-                 index_name=None, timezone=pytz.UTC,
-                 dtypes=None, max_length=100000,
-                 *args, **kwargs):
+                 index_name="timestamp", dtypes=None,
+                 max_length=100000, *args, **kwargs):
         """
         :param redis_client: redis client instance, only test with redis-py client.
         :param timezone: datetime timezone
@@ -32,8 +30,10 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         super(RedisPandasTimeSeries, self).__init__(redis_client=redis_client,
                                                     max_length=max_length, *args, **kwargs)
 
+        if index_name in columns:
+            raise RedisTimeSeriesError("columns name can't contain index name")
+
         self.columns = columns
-        self.tz = timezone
         self.dtypes = dtypes
         self.index_name = index_name
 
@@ -47,10 +47,11 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         date_index = data_frame.index
 
         start_timestamp = data_frame.idxmin()
-        start_timestamp = start_timestamp[0].timestamp()
+        start_timestamp = start_timestamp[0].to_pydatetime().timestamp()
 
         end_timestamp = data_frame.idxmax()
-        end_timestamp = end_timestamp[0].timestamp()
+        end_timestamp = end_timestamp[0].to_pydatetime().timestamp()
+
         exist_length = self.count(name, start_timestamp, end_timestamp)
 
         if exist_length > 0:
@@ -122,11 +123,11 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
             # to use :meth:`itertuples` which returns namedtuples of the values
             # and which is generally faster than ``iterrows``
 
-            data_pairs = {self._serializer.dumps(row[1:]): row[0].timestamp()
+            data_pairs = {self._serializer.dumps(row[1:]): row[0].to_pydatetime().timestamp()
                           for row in chunk_array.itertuples()}
 
             def pipe_func(_pipe):
-                _pipe.zadd(name,data_pairs)
+                _pipe.zadd(name, data_pairs)
 
             self.transaction_pipe(pipe_func, watch_keys=name)
 
@@ -137,8 +138,11 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         :return: bool
         """
         self._validate_key(name)
-        if isinstance(series, pd.Series) and hasattr(series.name, "timestamp"):
-            timestamp = series.name.timestamp()
+
+        if isinstance(series, pd.Series) and hasattr(series.name, "timestamp"): # validate datetime
+
+            series_time = series.name.to_pydatetime()
+            timestamp = series_time.timestamp()
 
             with self._lock:
                 if not self.exist_timestamp(name, timestamp):
@@ -161,7 +165,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         """
         data = super(RedisPandasTimeSeries, self).get(name, timestamp)
         if data:
-            date = datetime.fromtimestamp(timestamp, tz=self.tz)
+            date = datetime.fromtimestamp(timestamp)
             return pd.Series(data=data, index=self.columns, name=date)
 
     def iter(self, name, count=None):
@@ -172,7 +176,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
         :return: yield pandas.Series
         """
         for timestamp, data in super(RedisPandasTimeSeries, self).iter(name, count):
-            date = datetime.fromtimestamp(timestamp, tz=self.tz)
+            date = datetime.fromtimestamp(timestamp)
             yield pd.Series(data=data, index=self.columns, name=date)
 
     def get_slice(self, name, start_timestamp=None,
@@ -197,14 +201,12 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
             # [(b'\x81\xa5value\x00', 1526008483.331131),...]
 
             data = list(itertools.starmap(lambda serializer, timestamp:
-                                          [datetime.fromtimestamp(timestamp, tz=self.tz)] +
+                                          [datetime.fromtimestamp(timestamp)] +
                                           self._serializer.loads(serializer),
                                           results))
-            # todo optmise in future
-            data_frame = pd.DataFrame.from_records(data, index=[0])
-            data_frame.index.names = [self.index_name]
-            data_frame = data_frame.drop(axis=1, columns=[0])
-            data_frame.columns = self.columns
+
+            data_frame = pd.DataFrame.from_records(data, columns=[self.index_name] + self.columns)
+            data_frame = data_frame.set_index(self.index_name)
             if self.dtypes:
                 data_frame = data_frame.astype(dtype=self.dtypes)
             return data_frame
