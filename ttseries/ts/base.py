@@ -37,14 +37,12 @@ class RedisTSBase(object):
     # todo implement auto moving windows
 
     def __init__(self, redis_client, max_length=100000, transaction=True,
-                 serializer_cls=serializers.MsgPackSerializer,
-                 compressor_cls=None):
+                 serializer_cls=serializers.MsgPackSerializer):
         """
         :param redis_client: redis client instance, only test with redis-py client.
         :param max_length: int, max length of data to store the time-series data.
         :param transaction: bool, to ensure all the add or delete commands can be executed atomically
         :param serializer_cls: serializer class, serializer the data
-        :param compressor_cls: compress class, compress the data
         """
         self._redis_client = redis_client
         self.max_length = max_length
@@ -57,7 +55,6 @@ class RedisTSBase(object):
             raise SerializerError("Serializer class must inherit from "
                                   "ttseries.serializers.BaseSerializer abstract class")
 
-        self._compress = compressor_cls  # todo implement
 
     @property
     @functools.lru_cache(maxsize=4096)

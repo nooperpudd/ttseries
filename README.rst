@@ -322,8 +322,6 @@ TODO
 
 1. Support Redis 5.0
 
-2. Support compress data
-
 3. Support Redis cluster.
 
 
