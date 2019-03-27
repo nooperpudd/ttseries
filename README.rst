@@ -243,12 +243,11 @@ To initialize the class must provide ``columns`` and ``dtypes`` parameters.
 .. sourcecode:: python
 
     from datetime import datetime
-    import pytz
 
     key = "AA:MIN"
     now = datetime.now()
     columns = ["value"]
-    date_range = pandas.date_range(now, periods=10, freq="1min", tz=pytz.UTC)
+    date_range = pandas.date_range(now, periods=10, freq="1min")
 
     data_frame = pandas.DataFrame([i + 1 for i in range(len(date_range))],
                                 index=date_range, columns=columns)

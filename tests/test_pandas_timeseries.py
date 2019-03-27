@@ -2,12 +2,10 @@ import datetime
 import unittest
 
 import pandas
-import pytz
 import redis
 
 from ttseries import RedisPandasTimeSeries
 from ttseries.exceptions import RedisTimeSeriesError
-from ttseries.utils import np_datetime64_to_timestamp
 
 
 class RedisPandasMixin(object):
@@ -15,23 +13,31 @@ class RedisPandasMixin(object):
     def test_add(self):
         key = "AAPL:SECOND"
         data_frame = self.prepare_dataframe(10)
+
         series_item = data_frame.iloc[0]
 
-        self.time_series.add(key, series_item)
-        datetime_value = data_frame.index.values[0]
 
-        timestamp = np_datetime64_to_timestamp(datetime_value)
+        self.time_series.add(key, series_item)
+
+        datetime_value = data_frame.index.to_pydatetime()[0]
+
+        timestamp = datetime_value.timestamp()
+
 
         result = self.time_series.get(key, timestamp)
+
         pandas.testing.assert_series_equal(series_item, result)
 
     def test_get_slice(self):
         key = "AAPL:SECOND"
         data_frame = self.prepare_dataframe(20)
+
         self.time_series.add_many(key, data_frame)
 
         results_frame = self.time_series.get_slice(key)
-        pandas.testing.assert_frame_equal(data_frame, results_frame)
+
+
+        pandas.testing.assert_frame_equal(results_frame,data_frame)
 
     def test_iter(self):
         key = "AAPL:SECOND"
@@ -71,13 +77,13 @@ class RedisPandasTimeSeriesTest(unittest.TestCase, RedisPandasMixin):
         # https://github.com/pandas-dev/pandas/issues/9287
         self.columns = ["value"]
         self.dtypes = {"value": "int64"}
-        self.timezone = pytz.timezone("Asia/Shanghai")
+        self.index_name = "timestamp"
         redis_client = redis.StrictRedis()
 
         self.time_series = RedisPandasTimeSeries(redis_client,
                                                  columns=self.columns,
-                                                 timezone=self.timezone,
                                                  dtypes=self.dtypes,
+                                                 index_name=self.index_name,
                                                  max_length=20)
 
     def tearDown(self):
@@ -88,14 +94,18 @@ class RedisPandasTimeSeriesTest(unittest.TestCase, RedisPandasMixin):
         if time_span:
             now = now + time_span
 
-        date_range = pandas.date_range(now, periods=length,
-                                       freq="1min", tz=self.timezone)
+        date_range = pandas.date_range(now, periods=length, freq="1min")
 
-        return pandas.DataFrame([i + 1 for i in range(len(date_range))],
+        data_frame =  pandas.DataFrame([i + 1 for i in range(len(date_range))],
                                 index=date_range, columns=self.columns)
+        data_frame.index.name = self.index_name
+        return data_frame
+
+
 
     def dataframe_empty(self, columns, dtypes, index=None):
         data_frame = pandas.DataFrame(index=index)
         for column in columns:
             data_frame[column] = pandas.Series(dtype=dtypes[column])
+        data_frame.index.name = self.index_name
         return data_frame
