@@ -4,7 +4,7 @@ TT-series
 
 High performance engine to store Time series data in Redis.
 
-|travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion|
+|travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion| |download|
 
 
 TT-series is based on redis sorted sets to store the time-series data, `Sorted set`_ store scores with
@@ -376,6 +376,9 @@ links: https://www.infoq.com/articles/redis-time-series
 
 .. |docs| image:: https://readthedocs.org/projects/ttseries/badge/?version=latest
     :target: http://ttseries.readthedocs.io/en/latest/?badge=latest
+
+.. |download| image:: https://pepy.tech/badge/ttseries
+    :target: https://pepy.tech/project/ttseries
 
 
 
