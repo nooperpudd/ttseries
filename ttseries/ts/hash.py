@@ -82,7 +82,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
             def pipe_func(_pipe):  # trans function
                 _pipe.zadd(name, {key_id: timestamp})
-                _pipe.hmset(hash_key, dumps_dict)  # APPL:second:HASH, {1:value}
+                _pipe.hset(hash_key, mapping=dumps_dict)  # APPL:second:HASH, {1:value}
 
             watch_keys = (name, hash_key)  # APPL:SECOND , APPL:second:HASH
             return self.transaction_pipe(pipe_func, watch_keys)
@@ -236,7 +236,7 @@ class RedisHashTimeSeries(RedisTSBase):
 
             def pipe_func(_pipe):
                 _pipe.zadd(name, timestamp_ids)
-                _pipe.hmset(hash_key, ids_values)
+                _pipe.hset(hash_key, mapping=ids_values)
 
             self.transaction_pipe(pipe_func, watch_keys=(name, hash_key))
 
@@ -260,4 +260,4 @@ class RedisHashTimeSeries(RedisTSBase):
 
         for timestamp_pairs, hash_pairs in itertools.zip_longest(self.client.zscan_iter(name=name),
                                                                  self.client.hscan_iter(name=hash_key)):
-            yield (timestamp_pairs[1], self._serializer.loads(hash_pairs[1]))
+            yield timestamp_pairs[1], self._serializer.loads(hash_pairs[1])
