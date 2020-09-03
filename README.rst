@@ -6,6 +6,7 @@ High performance engine to store Time series data in Redis.
 
 |travis| |appveyor| |codecov| |codacy| |requirements| |docs| |pypi| |status| |pyversion| |download|
 
+Redis Version required: >=5.0
 
 TT-series is based on redis sorted sets to store the time-series data, `Sorted set`_ store scores with
 unique numbers under a single key, but it has a weakness to store records, only unique members are allowed

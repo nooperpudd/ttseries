@@ -55,7 +55,6 @@ class RedisTSBase(object):
             raise SerializerError("Serializer class must inherit from "
                                   "ttseries.serializers.BaseSerializer abstract class")
 
-
     @property
     @functools.lru_cache(maxsize=4096)
     def client(self):

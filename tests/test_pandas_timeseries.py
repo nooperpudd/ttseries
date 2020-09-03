@@ -16,13 +16,11 @@ class RedisPandasMixin(object):
 
         series_item = data_frame.iloc[0]
 
-
         self.time_series.add(key, series_item)
 
         datetime_value = data_frame.index.to_pydatetime()[0]
 
         timestamp = datetime_value.timestamp()
-
 
         result = self.time_series.get(key, timestamp)
 
@@ -35,20 +33,18 @@ class RedisPandasMixin(object):
         self.time_series.add_many(key, data_frame)
 
         results_frame = self.time_series.get_slice(key)
-
-
-        pandas.testing.assert_frame_equal(results_frame,data_frame)
+        self.assertTrue(data_frame.equals(results_frame))
 
     def test_iter(self):
         key = "AAPL:SECOND"
         data_frame = self.prepare_dataframe(10)
         self.time_series.add_many(key, data_frame)
-        new_data_frame = self.dataframe_empty(self.columns,
-                                              dtypes=self.dtypes)
+        new_data_frame = self.dataframe_empty(self.columns, dtypes=self.dtypes)
 
         for series in self.time_series.iter(key):
             new_data_frame = new_data_frame.append(series)
-        pandas.testing.assert_frame_equal(data_frame, new_data_frame)
+
+        self.assertTrue(data_frame.equals(new_data_frame))
 
     def test_add_exists_timestamp_assert_error(self):
         key = "AAPL:SECOND"
@@ -66,7 +62,7 @@ class RedisPandasMixin(object):
         self.time_series.add_many(key, data_frame2)
         results_frame = self.time_series.get_slice(key)
 
-        pandas.testing.assert_frame_equal(results_frame, data_frame2.iloc[10:])
+        self.assertTrue(results_frame.equals(data_frame2.iloc[10:]))
 
 
 class RedisPandasTimeSeriesTest(unittest.TestCase, RedisPandasMixin):
@@ -96,12 +92,10 @@ class RedisPandasTimeSeriesTest(unittest.TestCase, RedisPandasMixin):
 
         date_range = pandas.date_range(now, periods=length, freq="1min")
 
-        data_frame =  pandas.DataFrame([i + 1 for i in range(len(date_range))],
-                                index=date_range, columns=self.columns)
+        data_frame = pandas.DataFrame([i + 1 for i in range(len(date_range))],
+                                      index=date_range, columns=self.columns)
         data_frame.index.name = self.index_name
         return data_frame
-
-
 
     def dataframe_empty(self, columns, dtypes, index=None):
         data_frame = pandas.DataFrame(index=index)

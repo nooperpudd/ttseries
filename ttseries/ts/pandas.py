@@ -149,8 +149,7 @@ class RedisPandasTimeSeries(RedisSampleTimeSeries):
                     values = series.tolist()
                     data = self._serializer.dumps(values)
                     if self.length(name) == self.max_length:
-                        # todo use 5.0 BZPOPMIN
-                        self.client.zremrangebyrank(name, min=0, max=0)
+                        self.client.zpopmin(name)
                     return self.client.zadd(name, {data: timestamp})
         else:
             raise RedisTimeSeriesError("Please check series Type or "
