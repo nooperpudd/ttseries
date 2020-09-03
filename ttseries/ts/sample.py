@@ -40,8 +40,7 @@ class RedisSampleTimeSeries(RedisTSBase):
             if not self.exist_timestamp(name, timestamp):
                 data = self._serializer.dumps(data)
                 if self.length(name) == self.max_length:
-                    # todo use 5.0 BZPOPMIN
-                    self.client.zremrangebyrank(name, min=0, max=0)
+                    self.client.zpopmin(name)
 
                 return self.client.zadd(name, mapping={data: timestamp})
 
